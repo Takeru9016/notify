@@ -1,4 +1,3 @@
-// tamagui.config.ts
 import { createTamagui } from "tamagui";
 import { createInterFont } from "@tamagui/font-inter";
 
