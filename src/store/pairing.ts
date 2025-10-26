@@ -18,6 +18,7 @@ export type PairingState = {
   redeemCode: (code: string) => Promise<void>;
   checkExistingCode: () => Promise<boolean>;
   unpair: () => Promise<void>;
+  setPairId: (pairId: string | null) => void; // New action
   reset: () => void;
   clearError: () => void;
 };
@@ -118,17 +119,17 @@ export const usePairingStore = create<PairingState>((set) => ({
           code: formatCode(activeCode.code),
           expiresAt: activeCode.expiresAt,
         });
-        return true; // ✅ Return true if code exists
+        return true;
       } else {
         set({
           code: null,
           expiresAt: null,
         });
-        return false; // ✅ Return false if no code
+        return false;
       }
     } catch (error: any) {
       console.error("❌ Error checking existing code:", error.message);
-      return false; // ✅ Return false on error
+      return false;
     }
   },
 
@@ -157,6 +158,14 @@ export const usePairingStore = create<PairingState>((set) => ({
         isLoading: false,
       });
     }
+  },
+
+  // Set pair ID (called by profile listener)
+  setPairId: (pairId: string | null) => {
+    set({
+      isPaired: !!pairId,
+      pairId,
+    });
   },
 
   // Reset pairing state

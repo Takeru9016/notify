@@ -4,10 +4,7 @@ import {
   setDoc,
   updateDoc,
   serverTimestamp,
-  collection,
-  query,
-  where,
-  getDocs,
+  onSnapshot,
 } from "firebase/firestore";
 
 import { db } from "@/config/firebase";
@@ -160,4 +157,152 @@ export async function getPartnerProfile(): Promise<UserProfile | null> {
     console.error("❌ Error getting partner profile:", error.message);
     return null;
   }
+}
+
+/**
+ * Listen to current user's profile changes in real-time
+ * Returns unsubscribe function
+ */
+export function subscribeToProfile(
+  callback: (profile: UserProfile | null) => void
+): () => void {
+  const uid = getCurrentUserId();
+  if (!uid) {
+    console.warn("⚠️ Cannot subscribe to profile: User not authenticated");
+    return () => {};
+  }
+
+  console.log("👂 Subscribing to profile changes for:", uid);
+
+  const unsubscribe = onSnapshot(
+    doc(db, "users", uid),
+    (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        const profile: UserProfile = {
+          id: snapshot.id,
+          uid: data.uid || uid,
+          displayName: data.displayName || "User",
+          bio: data.bio || "",
+          avatarUrl: data.avatarUrl || "",
+          pairId: data.pairId || undefined,
+        };
+        console.log("📬 Profile updated:", profile);
+        callback(profile);
+      } else {
+        console.log("⚠️ Profile document does not exist");
+        callback(null);
+      }
+    },
+    (error) => {
+      console.error("❌ Error listening to profile:", error);
+      callback(null);
+    }
+  );
+
+  return unsubscribe;
+}
+
+/**
+ * Listen to partner's profile changes in real-time
+ * Returns unsubscribe function
+ */
+export function subscribeToPartnerProfile(
+  callback: (profile: UserProfile | null) => void
+): () => void {
+  const uid = getCurrentUserId();
+  if (!uid) {
+    console.warn("⚠️ Cannot subscribe to partner: User not authenticated");
+    return () => {};
+  }
+
+  let pairUnsubscribe: (() => void) | null = null;
+  let partnerUnsubscribe: (() => void) | null = null;
+
+  // First, listen to own profile to get pairId
+  const profileUnsubscribe = onSnapshot(
+    doc(db, "users", uid),
+    async (snapshot) => {
+      if (!snapshot.exists()) {
+        callback(null);
+        return;
+      }
+
+      const myProfile = snapshot.data();
+      const pairId = myProfile.pairId;
+
+      if (!pairId) {
+        console.log("⚠️ User is not paired");
+        callback(null);
+        return;
+      }
+
+      // Listen to pair document to get partner UID
+      if (pairUnsubscribe) pairUnsubscribe();
+      pairUnsubscribe = onSnapshot(
+        doc(db, "pairs", pairId),
+        (pairSnapshot) => {
+          if (!pairSnapshot.exists()) {
+            callback(null);
+            return;
+          }
+
+          const participants = pairSnapshot.data().participants as [
+            string,
+            string
+          ];
+          const partnerUid = participants.find((id) => id !== uid);
+
+          if (!partnerUid) {
+            callback(null);
+            return;
+          }
+
+          // Listen to partner's profile
+          if (partnerUnsubscribe) partnerUnsubscribe();
+          partnerUnsubscribe = onSnapshot(
+            doc(db, "users", partnerUid),
+            (partnerSnapshot) => {
+              if (!partnerSnapshot.exists()) {
+                callback(null);
+                return;
+              }
+
+              const data = partnerSnapshot.data();
+              const partnerProfile: UserProfile = {
+                id: partnerSnapshot.id,
+                uid: data.uid || partnerUid,
+                displayName: data.displayName || "Partner",
+                bio: data.bio || "",
+                avatarUrl: data.avatarUrl || "",
+                pairId: data.pairId || undefined,
+              };
+              console.log("📬 Partner profile updated:", partnerProfile);
+              callback(partnerProfile);
+            },
+            (error) => {
+              console.error("❌ Error listening to partner:", error);
+              callback(null);
+            }
+          );
+        },
+        (error) => {
+          console.error("❌ Error listening to pair:", error);
+          callback(null);
+        }
+      );
+    },
+    (error) => {
+      console.error("❌ Error listening to profile:", error);
+      callback(null);
+    }
+  );
+
+  // Return cleanup function that unsubscribes all listeners
+  return () => {
+    console.log("🔇 Cleaning up partner profile listener");
+    profileUnsubscribe();
+    if (pairUnsubscribe) pairUnsubscribe();
+    if (partnerUnsubscribe) partnerUnsubscribe();
+  };
 }

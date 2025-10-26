@@ -17,6 +17,7 @@ import {
 import { CodeInput, Countdown } from "@/components";
 import { usePairingStore } from "@/store/pairing";
 import { formatCode, unformatCode } from "@/utils/code-generator";
+import { subscribeToProfile } from "@/services/profile.service";
 
 export default function PairScreen() {
   const {
@@ -29,11 +30,31 @@ export default function PairScreen() {
     generateCode,
     redeemCode,
     checkExistingCode,
+    setPairId,
     clearError,
   } = usePairingStore();
 
   const [input, setInput] = useState<string>("");
   const [secure, setSecure] = useState<boolean>(true);
+
+  // Listen for profile changes (pairing updates)
+  useEffect(() => {
+    console.log("👂 Setting up profile listener...");
+
+    const unsubscribe = subscribeToProfile((profile) => {
+      if (profile?.pairId) {
+        console.log("🎉 Pair detected! pairId:", profile.pairId);
+        setPairId(profile.pairId);
+      } else {
+        setPairId(null);
+      }
+    });
+
+    return () => {
+      console.log("🔇 Cleaning up profile listener");
+      unsubscribe();
+    };
+  }, [setPairId]);
 
   // Check for existing code on mount
   useEffect(() => {
@@ -50,6 +71,7 @@ export default function PairScreen() {
   // Redirect if paired
   useEffect(() => {
     if (isPaired && pairId) {
+      console.log("✅ Paired! Redirecting to home...");
       router.replace("/(tabs)");
     }
   }, [isPaired, pairId]);
