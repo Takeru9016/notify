@@ -1,7 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Text } from 'tamagui';
+import { useEffect, useMemo, useState } from "react";
+import { Text } from "tamagui";
 
-export default function Countdown({ expiresAt }: { expiresAt?: number }) {
+export default function Countdown({
+  expiresAt,
+}: {
+  expiresAt?: number | null;
+}) {
   const [now, setNow] = useState<number>(Date.now());
 
   useEffect(() => {
@@ -10,12 +14,12 @@ export default function Countdown({ expiresAt }: { expiresAt?: number }) {
   }, []);
 
   const label = useMemo(() => {
-    if (!expiresAt) return '--:--';
+    if (!expiresAt) return "--:--";
     const delta = Math.max(0, Math.floor((expiresAt - now) / 1000));
     const m = Math.floor(delta / 60)
       .toString()
-      .padStart(2, '0');
-    const s = (delta % 60).toString().padStart(2, '0');
+      .padStart(2, "0");
+    const s = (delta % 60).toString().padStart(2, "0");
     return `${m}:${s}`;
   }, [expiresAt, now]);
 

@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Share } from 'react-native';
-import { router } from 'expo-router';
-import * as Clipboard from 'expo-clipboard';
+import { useEffect, useMemo, useState } from "react";
+import { Share, Alert } from "react-native";
+import { router } from "expo-router";
+import * as Clipboard from "expo-clipboard";
 import {
   YStack,
   XStack,
@@ -11,51 +11,77 @@ import {
   Separator,
   Switch,
   ScrollView,
-} from 'tamagui';
+  Spinner,
+} from "tamagui";
 
-import { CodeInput, Countdown } from '@/components';
-import { usePairingStore } from '@/state/pairing';
-import { redeemCode, shareCode } from '@/services/mock/pairing.mock';
+import { CodeInput, Countdown } from "@/components";
+import { usePairingStore } from "@/store/pairing";
+import { formatCode, unformatCode } from "@/utils/code-generator";
 
 export default function PairScreen() {
-  const { status, pairId, myCode, expiresAt, error, setStatus, setPairId, setCode, setError } =
-    usePairingStore();
-  const [input, setInput] = useState<string>('');
-  const [secure, setSecure] = useState<boolean>(true);
-  const [busy, setBusy] = useState<boolean>(false);
+  const {
+    isPaired,
+    pairId,
+    code: myCode,
+    expiresAt,
+    isLoading,
+    error,
+    generateCode,
+    redeemCode,
+    checkExistingCode,
+    clearError,
+  } = usePairingStore();
 
+  const [input, setInput] = useState<string>("");
+  const [secure, setSecure] = useState<boolean>(true);
+
+  // Check for existing code on mount
   useEffect(() => {
     if (!myCode || !expiresAt) {
-      handleGenerate();
+      checkExistingCode().then((hasCode) => {
+        if (!hasCode) {
+          handleGenerate();
+        }
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Redirect if paired
   useEffect(() => {
-    if (status === 'paired' && pairId) {
-      router.replace('/(tabs)');
+    if (isPaired && pairId) {
+      router.replace("/(tabs)");
     }
-  }, [status, pairId]);
+  }, [isPaired, pairId]);
+
+  // Clear error when input changes
+  const handleInputChange = (newValue: string) => {
+    setInput(newValue);
+    if (error) {
+      clearError();
+    }
+  };
 
   const handleGenerate = async () => {
-    setBusy(true);
-    try {
-      const { code, expiresAt } = await shareCode();
-      setCode(code, expiresAt);
-    } finally {
-      setBusy(false);
-    }
+    await generateCode();
   };
 
   const handleCopy = async () => {
     if (myCode) {
-      await Clipboard.setStringAsync(myCode);
+      await Clipboard.setStringAsync(unformatCode(myCode));
+      Alert.alert("Copied!", "Code copied to clipboard");
     }
   };
 
   const handleShare = async () => {
     if (!myCode) return;
-    await Share.share({ message: `My Notify code: ${myCode}` });
+    try {
+      await Share.share({
+        message: `Join me on Notify! Use this code to pair: ${myCode}`,
+      });
+    } catch (error) {
+      console.error("Error sharing code:", error);
+    }
   };
 
   const codeExpired = useMemo(() => {
@@ -63,37 +89,51 @@ export default function PairScreen() {
   }, [expiresAt]);
 
   const handleRedeem = async () => {
-    if (!input || input.replace(/\D/g, '').length !== 6) {
-      setError('Please enter a valid 6-digit code.');
+    // Clean the input (remove non-alphanumeric)
+    const cleanInput = input.replace(/[^A-Z0-9]/gi, "");
+
+    console.log("🔍 Input:", input);
+    console.log("🔍 Clean input:", cleanInput);
+    console.log("🔍 Length:", cleanInput.length);
+
+    // Validate input
+    if (!cleanInput || cleanInput.length !== 8) {
+      Alert.alert("Invalid Code", "Please enter a valid 8-character code.");
       return;
     }
-    setBusy(true);
-    setStatus('pairing');
-    const res = await redeemCode(input);
-    if (res.ok) {
-      setPairId(res.pairId);
-      setStatus('paired');
-    } else {
-      setStatus('error');
-      if (res.reason === 'invalid') setError('Invalid code. Check and try again.');
-      if (res.reason === 'expired') setError('Code expired. Ask partner to share a new one.');
-      if (res.reason === 'already_paired') setError('This code is already used.');
-      if (res.reason === 'rate_limited') setError('Too many attempts. Try again in a minute.');
-    }
-    setBusy(false);
+
+    // Format code (uppercase and clean)
+    const formattedCode = unformatCode(input);
+    console.log("🚀 Redeeming code:", formattedCode);
+
+    // Redeem code
+    await redeemCode(formattedCode);
   };
+
+  // Format the displayed code with hyphen
+  const displayCode = myCode ? formatCode(unformatCode(myCode)) : "----·----";
 
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1 }} backgroundColor="$bg">
       <YStack flex={1} padding="$4" paddingTop="$6" gap="$3">
         {/* Header */}
-        <XStack alignItems="center" justifyContent="space-between" marginBottom="$1">
-          <Text color="$color" fontSize={24} fontWeight="900" lineHeight={28} flex={1}>
+        <XStack
+          alignItems="center"
+          justifyContent="space-between"
+          marginBottom="$1"
+        >
+          <Text
+            color="$color"
+            fontSize={24}
+            fontWeight="900"
+            lineHeight={28}
+            flex={1}
+          >
             Pair with your partner
           </Text>
-          <Button unstyled onPress={() => router.replace('/(tabs)')}>
+          <Button unstyled onPress={() => router.replace("/(tabs)")}>
             <Text color="$primary" fontSize={15} fontWeight="600">
-              Next
+              Skip
             </Text>
           </Button>
         </XStack>
@@ -103,33 +143,47 @@ export default function PairScreen() {
         </Text>
 
         {/* Share Code Card */}
-        <Stack backgroundColor="#e9d7ff" borderRadius="$7" padding="$4" gap="$3">
+        <Stack
+          backgroundColor="#e9d7ff"
+          borderRadius="$7"
+          padding="$4"
+          gap="$3"
+        >
           {/* Title + Badge */}
-          <XStack alignItems="flex-start" justifyContent="space-between" gap="$2">
-            <Text color="$color" fontSize={18} fontWeight="900" flex={1} lineHeight={22}>
+          <XStack
+            alignItems="flex-start"
+            justifyContent="space-between"
+            gap="$2"
+          >
+            <Text
+              color="$color"
+              fontSize={18}
+              fontWeight="900"
+              flex={1}
+              lineHeight={22}
+            >
               I want to invite my partner
             </Text>
-            <XStack
-              backgroundColor="$background"
-              borderColor="$borderColor"
-              borderWidth={1}
-              borderRadius="$4"
-              paddingVertical={4}
-              paddingHorizontal={8}
-              alignItems="center"
-              justifyContent="center"
-            >
-              <Text color="$muted" fontSize={12}>
-                Tap to copy
-              </Text>
-            </XStack>
           </XStack>
 
           {/* Code Display */}
-          <XStack alignItems="center" justifyContent="center" paddingVertical="$2">
-            <Text color="$color" fontSize={36} fontWeight="900" letterSpacing={4}>
-              {myCode ?? '------'}
-            </Text>
+          <XStack
+            alignItems="center"
+            justifyContent="center"
+            paddingVertical="$2"
+          >
+            {isLoading && !myCode ? (
+              <Spinner size="large" color="$primary" />
+            ) : (
+              <Text
+                color="$color"
+                fontSize={36}
+                fontWeight="900"
+                letterSpacing={4}
+              >
+                {displayCode}
+              </Text>
+            )}
           </XStack>
 
           {/* Copy + Share Buttons */}
@@ -140,12 +194,16 @@ export default function PairScreen() {
               borderRadius="$6"
               height={44}
               onPress={handleCopy}
-              disabled={busy || codeExpired}
+              disabled={isLoading || codeExpired || !myCode}
               pressStyle={{ opacity: 0.8 }}
             >
-              <Text color="white" fontWeight="700" fontSize={15}>
-                Copy
-              </Text>
+              {isLoading ? (
+                <Spinner color="white" />
+              ) : (
+                <Text color="white" fontWeight="700" fontSize={15}>
+                  Copy
+                </Text>
+              )}
             </Button>
             <Button
               flex={1}
@@ -155,7 +213,7 @@ export default function PairScreen() {
               borderRadius="$6"
               height={44}
               onPress={handleShare}
-              disabled={busy || codeExpired}
+              disabled={isLoading || codeExpired || !myCode}
               pressStyle={{ opacity: 0.7 }}
             >
               <Text color="$primary" fontWeight="700" fontSize={15}>
@@ -179,7 +237,7 @@ export default function PairScreen() {
               size="$3"
               checked={secure}
               onCheckedChange={(v) => setSecure(!!v)}
-              backgroundColor={secure ? '$primary' : '$borderColor'}
+              backgroundColor={secure ? "$primary" : "$borderColor"}
             >
               <Switch.Thumb backgroundColor="white" />
             </Switch>
@@ -197,12 +255,16 @@ export default function PairScreen() {
             <Button
               chromeless
               onPress={handleGenerate}
-              disabled={busy}
+              disabled={isLoading}
               pressStyle={{ opacity: 0.6 }}
             >
-              <Text color="$primary" fontWeight="700" fontSize={14}>
-                Regenerate
-              </Text>
+              {isLoading ? (
+                <Spinner size="small" color="$primary" />
+              ) : (
+                <Text color="$primary" fontWeight="700" fontSize={14}>
+                  Regenerate
+                </Text>
+              )}
             </Button>
           </XStack>
         </Stack>
@@ -229,7 +291,13 @@ export default function PairScreen() {
         </XStack>
 
         {/* Enter Code Card */}
-        <Stack backgroundColor="#ffd0c8" borderRadius="$7" padding="$4" gap="$3" marginBottom="$4">
+        <Stack
+          backgroundColor="#ffd0c8"
+          borderRadius="$7"
+          padding="$4"
+          gap="$3"
+          marginBottom="$4"
+        >
           <Text color="$color" fontSize={18} fontWeight="900" lineHeight={22}>
             I have a code
           </Text>
@@ -237,10 +305,20 @@ export default function PairScreen() {
             Enter your partner's code
           </Text>
 
-          <CodeInput length={6} group={3} value={input} onChange={setInput} error={error} />
+          <CodeInput
+            length={8}
+            group={4}
+            value={input}
+            onChange={handleInputChange}
+            error={error}
+          />
 
           {error ? (
-            <Stack backgroundColor="rgba(255,255,255,0.7)" borderRadius="$4" padding="$2">
+            <Stack
+              backgroundColor="rgba(255,255,255,0.7)"
+              borderRadius="$4"
+              padding="$2"
+            >
               <Text color="#d32f2f" fontSize={13} fontWeight="600">
                 {error}
               </Text>
@@ -252,12 +330,16 @@ export default function PairScreen() {
             borderRadius="$6"
             height={44}
             onPress={handleRedeem}
-            disabled={busy}
+            disabled={isLoading || input.replace(/[^A-Z0-9]/gi, "").length < 8}
             pressStyle={{ opacity: 0.8 }}
           >
-            <Text color="white" fontWeight="700" fontSize={15}>
-              Pair now
-            </Text>
+            {isLoading ? (
+              <Spinner color="white" />
+            ) : (
+              <Text color="white" fontWeight="700" fontSize={15}>
+                Pair now
+              </Text>
+            )}
           </Button>
         </Stack>
       </YStack>

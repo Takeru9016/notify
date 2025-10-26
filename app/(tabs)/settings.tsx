@@ -1,15 +1,28 @@
-import { useEffect, useState } from 'react';
-import { Alert, Switch, Linking } from 'react-native';
-import { useColorScheme } from 'react-native';
-import { router } from 'expo-router';
-import { YStack, XStack, Text, Button, ScrollView, Stack, Image, Separator } from 'tamagui';
+import { useEffect, useState } from "react";
+import { Alert, Switch, Linking } from "react-native";
+import { useColorScheme } from "react-native";
+import { router } from "expo-router";
+import {
+  YStack,
+  XStack,
+  Text,
+  Button,
+  ScrollView,
+  Stack,
+  Image,
+  Separator,
+} from "tamagui";
 
-import { UserProfile } from '@/types';
-import { getProfile, getPartnerProfile, updateProfile } from '@/services/profile.service';
-import { ProfileEditModal, ThemeSelectorModal } from '@/components';
-import { usePairingStore } from '@/state/pairing';
-import { useThemeStore, ThemeMode } from '@/state/theme';
-
+import { UserProfile } from "@/types";
+import {
+  getProfile,
+  getPartnerProfile,
+  updateProfile,
+} from "@/services/profile.service";
+import { ProfileEditModal, ThemeSelectorModal } from "@/components";
+import { usePairingStore } from "@/store/pairing";
+import { useThemeStore, ThemeMode } from "@/state/theme";
+import { unpair } from "@/services/pairing.service";
 
 export default function SettingsScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -39,18 +52,23 @@ export default function SettingsScreen() {
     await load();
   };
 
-  const handleUnpair = () => {
+  const handleUnpair = async () => {
     Alert.alert(
-      'Unpair',
-      'Are you sure you want to disconnect from your partner? This cannot be undone.',
+      "Unpair",
+      "Are you sure you want to unpair? This will remove your connection with your partner.",
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: "Cancel", style: "cancel" },
         {
-          text: 'Unpair',
-          style: 'destructive',
-          onPress: () => {
-            reset();
-            router.replace('/pair');
+          text: "Unpair",
+          style: "destructive",
+          onPress: async () => {
+            await unpair();
+            // Refresh profile
+            const updatedProfile = await getProfile();
+            if (updatedProfile) {
+              setProfile(updatedProfile);
+              setPartner(null);
+            }
           },
         },
       ]
@@ -58,14 +76,10 @@ export default function SettingsScreen() {
   };
 
   const handleOpenNotificationSettings = () => {
-    Alert.alert(
-      'Notification Settings',
-      'Open system notification settings?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Open', onPress: () => Linking.openSettings() },
-      ]
-    );
+    Alert.alert("Notification Settings", "Open system notification settings?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Open", onPress: () => Linking.openSettings() },
+    ]);
   };
 
   const handleThemeSelect = (newMode: ThemeMode) => {
@@ -73,13 +87,13 @@ export default function SettingsScreen() {
   };
 
   const getThemeLabel = () => {
-    if (mode === 'system') {
-      return `System (${systemColorScheme === 'dark' ? 'Dark' : 'Light'})`;
+    if (mode === "system") {
+      return `System (${systemColorScheme === "dark" ? "Dark" : "Light"})`;
     }
-    return mode === 'dark' ? 'Dark' : 'Light';
+    return mode === "dark" ? "Dark" : "Light";
   };
 
-  const isPaired = status === 'paired';
+  const isPaired = status === "paired";
 
   return (
     <YStack flex={1} backgroundColor="$bg">
@@ -119,14 +133,14 @@ export default function SettingsScreen() {
                       justifyContent="center"
                     >
                       <Text color="white" fontSize={24} fontWeight="900">
-                        {profile?.displayName.charAt(0).toUpperCase() || '?'}
+                        {profile?.displayName.charAt(0).toUpperCase() || "?"}
                       </Text>
                     </Stack>
                   )}
                 </Stack>
                 <YStack flex={1} gap="$1">
                   <Text color="$color" fontSize={16} fontWeight="700">
-                    {profile?.displayName || 'Loading...'}
+                    {profile?.displayName || "Loading..."}
                   </Text>
                   {profile?.bio && (
                     <Text color="$muted" fontSize={14} numberOfLines={2}>
@@ -156,7 +170,11 @@ export default function SettingsScreen() {
               <Text color="$color" fontSize={18} fontWeight="700">
                 Partner
               </Text>
-              <Stack backgroundColor="$background" borderRadius="$6" padding="$4">
+              <Stack
+                backgroundColor="$background"
+                borderRadius="$6"
+                padding="$4"
+              >
                 <XStack gap="$3" alignItems="center">
                   <Stack
                     width={60}
@@ -207,7 +225,12 @@ export default function SettingsScreen() {
             <Text color="$color" fontSize={18} fontWeight="700">
               Notifications
             </Text>
-            <Stack backgroundColor="$background" borderRadius="$6" padding="$4" gap="$3">
+            <Stack
+              backgroundColor="$background"
+              borderRadius="$6"
+              padding="$4"
+              gap="$3"
+            >
               {/* Master Toggle */}
               <XStack alignItems="center" justifyContent="space-between">
                 <YStack flex={1} gap="$1">
@@ -312,7 +335,11 @@ export default function SettingsScreen() {
               onPress={() => setThemeModalVisible(true)}
               pressStyle={{ opacity: 0.7 }}
             >
-              <Stack backgroundColor="$background" borderRadius="$6" padding="$4">
+              <Stack
+                backgroundColor="$background"
+                borderRadius="$6"
+                padding="$4"
+              >
                 <XStack alignItems="center" justifyContent="space-between">
                   <YStack flex={1} gap="$1">
                     <Text color="$color" fontSize={15} fontWeight="600">
@@ -337,13 +364,20 @@ export default function SettingsScreen() {
             <Text color="$color" fontSize={18} fontWeight="700">
               Connection
             </Text>
-            <Stack backgroundColor="$background" borderRadius="$6" padding="$4" gap="$3">
+            <Stack
+              backgroundColor="$background"
+              borderRadius="$6"
+              padding="$4"
+              gap="$3"
+            >
               <YStack gap="$1">
                 <Text color="$color" fontSize={15} fontWeight="600">
                   Pair Status
                 </Text>
                 <Text color="$muted" fontSize={13}>
-                  {isPaired && partner ? `Connected with ${partner.displayName}` : 'Not connected'}
+                  {isPaired && partner
+                    ? `Connected with ${partner.displayName}`
+                    : "Not connected"}
                 </Text>
               </YStack>
               {isPaired && partner && (
@@ -374,7 +408,12 @@ export default function SettingsScreen() {
             <Text color="$color" fontSize={18} fontWeight="700">
               About
             </Text>
-            <Stack backgroundColor="$background" borderRadius="$6" padding="$4" gap="$2">
+            <Stack
+              backgroundColor="$background"
+              borderRadius="$6"
+              padding="$4"
+              gap="$2"
+            >
               <XStack alignItems="center" justifyContent="space-between">
                 <Text color="$color" fontSize={15} fontWeight="600">
                   Version

@@ -1,6 +1,6 @@
-import React, { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
-import { TextInput } from 'react-native';
-import { XStack, Stack, Text } from 'tamagui';
+import React, { forwardRef, useEffect, useMemo, useRef } from "react";
+import { TextInput } from "react-native";
+import { XStack, Stack, Text } from "tamagui";
 
 type Props = {
   length?: number;
@@ -9,60 +9,69 @@ type Props = {
   onChange?: (digits: string) => void;
   autoFocus?: boolean;
   disabled?: boolean;
-  error?: string;
+  error?: string | null;
 };
 
 export const CodeInput = forwardRef<TextInput, Props>(function CodeInput(
-  { length = 6, group = 3, value, onChange, autoFocus, disabled, error },
+  { length = 8, group = 4, value = "", onChange, autoFocus, disabled, error },
   _ref
 ) {
-  const [digits, setDigits] = useState<string>(value ?? '');
   const inputs = useRef<Array<TextInput | null>>([]);
-
-  useEffect(() => {
-    if (value !== undefined && value !== digits) {
-      setDigits(value);
-    }
-  }, [value]);
 
   const blocks = useMemo(() => Array.from({ length }), [length]);
 
   const setChar = (index: number, char: string) => {
-    const clean = char.replace(/\D/g, '').slice(-1);
+    const clean = char
+      .replace(/[^A-Z0-9]/gi, "")
+      .toUpperCase()
+      .slice(-1);
     if (!clean) return;
-    const arr = digits.split('');
+
+    const arr = value.split("");
     arr[index] = clean;
     const next = Array.from({ length })
-      .map((_, i) => arr[i] ?? '')
-      .join('');
-    setDigits(next);
+      .map((_, i) => arr[i] ?? "")
+      .join("");
+
     onChange?.(next);
 
-    if (index < length - 1) {
-      inputs.current[index + 1]?.focus();
+    // Auto-advance to next input
+    if (clean && index < length - 1) {
+      setTimeout(() => {
+        inputs.current[index + 1]?.focus();
+      }, 10);
     }
   };
 
   const onKeyPress = (index: number, key: string) => {
-    if (key === 'Backspace') {
-      const arr = digits.split('');
+    if (key === "Backspace") {
+      const arr = value.split("");
       if (arr[index]) {
-        arr[index] = '';
+        // Clear current digit
+        arr[index] = "";
+        const next = Array.from({ length })
+          .map((_, i) => arr[i] ?? "")
+          .join("");
+        onChange?.(next);
       } else if (index > 0) {
-        inputs.current[index - 1]?.focus();
-        arr[index - 1] = '';
+        // Move to previous input and clear it
+        setTimeout(() => {
+          inputs.current[index - 1]?.focus();
+        }, 10);
+        arr[index - 1] = "";
+        const next = Array.from({ length })
+          .map((_, i) => arr[i] ?? "")
+          .join("");
+        onChange?.(next);
       }
-      const next = Array.from({ length })
-        .map((_, i) => arr[i] ?? '')
-        .join('');
-      setDigits(next);
-      onChange?.(next);
     }
   };
 
   useEffect(() => {
     if (autoFocus) {
-      inputs.current[0]?.focus();
+      setTimeout(() => {
+        inputs.current[0]?.focus();
+      }, 100);
     }
   }, [autoFocus]);
 
@@ -78,7 +87,7 @@ export const CodeInput = forwardRef<TextInput, Props>(function CodeInput(
               borderRadius="$4"
               backgroundColor="white"
               borderWidth={2}
-              borderColor={error ? '#ff7b7b' : '#e0e0e0'}
+              borderColor={error ? "#ff7b7b" : "#e0e0e0"}
               alignItems="center"
               justifyContent="center"
             >
@@ -86,26 +95,33 @@ export const CodeInput = forwardRef<TextInput, Props>(function CodeInput(
                 ref={(el) => {
                   inputs.current[i] = el;
                 }}
-                value={digits[i] ?? ''}
+                value={value[i] ?? ""}
                 onChangeText={(t) => setChar(i, t)}
                 onKeyPress={({ nativeEvent }) => onKeyPress(i, nativeEvent.key)}
-                keyboardType="number-pad"
+                keyboardType="default"
+                autoCapitalize="characters"
                 textAlign="center"
                 maxLength={1}
                 editable={!disabled}
+                selectTextOnFocus
                 style={{
                   fontSize: 22,
-                  fontWeight: '900',
-                  color: '#2d2751',
+                  fontWeight: "900",
+                  color: "#2d2751",
                   padding: 0,
                   margin: 0,
                   width: 42,
-                  textAlign: 'center',
+                  textAlign: "center",
                 }}
               />
             </Stack>
             {showHyphenAfter && i < length - 1 ? (
-              <Text color="$muted" fontSize={20} fontWeight="700" marginHorizontal="$1">
+              <Text
+                color="$muted"
+                fontSize={20}
+                fontWeight="700"
+                marginHorizontal="$1"
+              >
                 -
               </Text>
             ) : null}
