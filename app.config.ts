@@ -54,15 +54,13 @@ const config: ExpoConfig = {
     eas: {
       projectId: process.env.EAS_PROJECT_ID,
     },
-    // Reserve keys for Firebase (Phase 4)
-    firebase: {
-      apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-      authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-      projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-      storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-      messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-      appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-    },
+    // Firebase config from environment variables
+    firebaseApiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+    firebaseAuthDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    firebaseProjectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+    firebaseStorageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    firebaseMessagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    firebaseAppId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
   },
 };
 

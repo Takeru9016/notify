@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
-import { useColorScheme } from 'react-native';
-import { Slot, useRouter, useSegments } from 'expo-router';
-import { TamaguiProvider, Theme } from 'tamagui';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from "react";
+import { useColorScheme } from "react-native";
+import { Slot, useRouter, useSegments } from "expo-router";
+import { TamaguiProvider, Theme } from "tamagui";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import config from '../tamagui.config';
-import { usePairingStore } from '@/state/pairing';
-import { useThemeStore } from '@/state/theme';
+import config from "../tamagui.config";
+import { usePairingStore } from "@/state/pairing";
+import { useThemeStore } from "@/state/theme";
+import { testFirebaseConnection } from "@/utils/testFirebase";
 
 const qc = new QueryClient();
 
@@ -20,19 +21,20 @@ function Gate() {
 
   useEffect(() => {
     setMounted(true);
+    testFirebaseConnection();
   }, []);
 
   useEffect(() => {
     if (!mounted) return;
-    const inTabs = segments[0] === '(tabs)';
+    const inTabs = segments[0] === "(tabs)";
 
     if (firstRun.current) {
       firstRun.current = false;
       return;
     }
 
-    if (status !== 'paired' && inTabs) {
-      router.replace('/pair');
+    if (status !== "paired" && inTabs) {
+      router.replace("/pair");
     }
   }, [mounted, segments, status]);
 
@@ -44,9 +46,8 @@ export default function RootLayout() {
   const { mode } = useThemeStore();
 
   // Determine active theme based on user preference
-  const activeTheme = mode === 'system' 
-    ? (systemScheme === 'dark' ? 'dark' : 'light')
-    : mode;
+  const activeTheme =
+    mode === "system" ? (systemScheme === "dark" ? "dark" : "light") : mode;
 
   return (
     <QueryClientProvider client={qc}>
