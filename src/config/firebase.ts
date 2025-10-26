@@ -1,30 +1,42 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
+import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
 import {
   getAuth,
   initializeAuth,
   getReactNativePersistence,
+  Auth,
 } from "firebase/auth";
 import {
   getFirestore,
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
+  Firestore,
 } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { getStorage, FirebaseStorage } from "firebase/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+// Firebase configuration type
+interface FirebaseConfig {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  storageBucket: string;
+  messagingSenderId: string;
+  appId: string;
+}
+
 // Get Firebase config from environment variables
-const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+const firebaseConfig: FirebaseConfig = {
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "",
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "",
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "",
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || "",
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "",
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || "",
 };
 
 // Validate config
-const requiredKeys = [
+const requiredKeys: (keyof FirebaseConfig)[] = [
   "apiKey",
   "authDomain",
   "projectId",
@@ -34,13 +46,13 @@ const requiredKeys = [
 ];
 
 for (const key of requiredKeys) {
-  if (!firebaseConfig[key as keyof typeof firebaseConfig]) {
+  if (!firebaseConfig[key]) {
     throw new Error(`Missing Firebase config: ${key}`);
   }
 }
 
 // Initialize Firebase (singleton pattern)
-let app;
+let app: FirebaseApp;
 if (getApps().length === 0) {
   app = initializeApp(firebaseConfig);
 } else {
@@ -48,7 +60,7 @@ if (getApps().length === 0) {
 }
 
 // Initialize Auth with AsyncStorage persistence (React Native way)
-let auth;
+let auth: Auth;
 try {
   auth = initializeAuth(app, {
     persistence: getReactNativePersistence(AsyncStorage),
@@ -59,7 +71,7 @@ try {
 }
 
 // Initialize Firestore with new cache API (no deprecation warning)
-let db;
+let db: Firestore;
 try {
   db = initializeFirestore(app, {
     localCache: persistentLocalCache({
@@ -72,17 +84,20 @@ try {
 }
 
 // Initialize Storage
-const storage = getStorage(app);
+const storage: FirebaseStorage = getStorage(app);
 
 export { app, auth, db, storage };
 
 // Helper to check if Firebase is configured
-export const isFirebaseConfigured = () => {
+export const isFirebaseConfigured = (): boolean => {
   return getApps().length > 0;
 };
 
 // Export config for debugging (remove in production)
-export const getFirebaseConfig = () => {
+export const getFirebaseConfig = (): {
+  projectId: string;
+  authDomain: string;
+} | null => {
   if (__DEV__) {
     return {
       projectId: firebaseConfig.projectId,

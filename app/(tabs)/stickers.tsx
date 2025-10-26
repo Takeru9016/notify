@@ -9,7 +9,7 @@ import {
   addSticker,
   sendSticker,
   deleteSticker,
-} from "@/services/stickers.mock";
+} from "@/services/mock/stickers.mock";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 56) / 3; // 3 columns with padding

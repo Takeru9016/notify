@@ -10,7 +10,7 @@ import {
   deleteTodo,
   getTodos,
   updateTodo,
-} from "@/services/todo.mock";
+} from "@/services/mock/todo.mock";
 
 type Filter = "all" | "active" | "completed";
 

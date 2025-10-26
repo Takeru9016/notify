@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { YStack, XStack, Text, Button, ScrollView, Stack, Image, Separator } from 'tamagui';
 
 import { UserProfile } from '@/types';
-import { getProfile, getPartnerProfile, updateProfile } from '@/services/profile.mock';
+import { getProfile, getPartnerProfile, updateProfile } from '@/services/profile.service';
 import { ProfileEditModal, ThemeSelectorModal } from '@/components';
 import { usePairingStore } from '@/state/pairing';
 import { useThemeStore, ThemeMode } from '@/state/theme';

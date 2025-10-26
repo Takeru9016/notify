@@ -15,7 +15,7 @@ import {
 
 import { CodeInput, Countdown } from '@/components';
 import { usePairingStore } from '@/state/pairing';
-import { redeemCode, shareCode } from '@/services/pairing.mock';
+import { redeemCode, shareCode } from '@/services/mock/pairing.mock';
 
 export default function PairScreen() {
   const { status, pairId, myCode, expiresAt, error, setStatus, setPairId, setCode, setError } =

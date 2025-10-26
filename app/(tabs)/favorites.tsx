@@ -13,7 +13,7 @@ import {
   deleteFavorite,
   updateFavorite,
   addFavorite,
-} from "@/services/favorites.mock";
+} from "@/services/mock/favorites.mock";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2; // 2 columns with padding

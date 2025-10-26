@@ -13,11 +13,11 @@ import { router } from "expo-router";
 
 import { UserProfile, Notification, Todo, Favorite, Sticker } from "@/types";
 
-import { getProfile, getPartnerProfile } from "@/services/profile.mock";
-import { getFavorites } from "@/services/favorites.mock";
-import { getStickers } from "@/services/stickers.mock";
-import { getNotifications } from "@/services/notification.mock";
-import { getTodos } from "@/services/todo.mock";
+import { getProfile, getPartnerProfile } from "@/services/mock/profile.mock";
+import { getFavorites } from "@/services/mock/favorites.mock";
+import { getStickers } from "@/services/mock/stickers.mock";
+import { getNotifications } from "@/services/mock/notification.mock";
+import { getTodos } from "@/services/mock/todo.mock";
 
 export default function HomeScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
