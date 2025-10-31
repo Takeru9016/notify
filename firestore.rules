@@ -12,6 +12,11 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == uid;
     }
     
+    // Helper function to get user's pairId
+    function getUserPairId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.pairId;
+    }
+    
     // Helper function to check if user is part of a pair
     function isPairMember(pairId) {
       return isAuthenticated() && 
@@ -126,7 +131,8 @@ service cloud.firestore {
       
       // Pair members can create todos
       allow create: if isAuthenticated() && 
-                       isPairMember(request.resource.data.pairId);
+                       isPairMember(request.resource.data.pairId) &&
+                       request.resource.data.createdBy == request.auth.uid;
       
       // Pair members can update todos
       allow update: if isAuthenticated() && 
@@ -145,7 +151,8 @@ service cloud.firestore {
       
       // Pair members can create favorites
       allow create: if isAuthenticated() && 
-                       isPairMember(request.resource.data.pairId);
+                       isPairMember(request.resource.data.pairId) &&
+                       request.resource.data.createdBy == request.auth.uid;
       
       // Pair members can update favorites
       allow update: if isAuthenticated() && 
@@ -164,11 +171,17 @@ service cloud.firestore {
       
       // Pair members can create stickers
       allow create: if isAuthenticated() && 
-                       isPairMember(request.resource.data.pairId);
+                       isPairMember(request.resource.data.pairId) &&
+                       request.resource.data.createdBy == request.auth.uid &&
+                       request.resource.data.name is string &&
+                       request.resource.data.imageUrl is string;
       
-      // Pair members can update stickers
+      // Pair members can update stickers (name only)
       allow update: if isAuthenticated() && 
-                       isPairMember(resource.data.pairId);
+                       isPairMember(resource.data.pairId) &&
+                       request.resource.data.pairId == resource.data.pairId &&
+                       request.resource.data.createdBy == resource.data.createdBy &&
+                       request.resource.data.imageUrl == resource.data.imageUrl;
       
       // Pair members can delete stickers
       allow delete: if isAuthenticated() && 

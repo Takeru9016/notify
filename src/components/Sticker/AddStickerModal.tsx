@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Modal, Platform, KeyboardAvoidingView, Alert } from 'react-native';
+import { useState } from "react";
+import { Modal, Platform, KeyboardAvoidingView, Alert } from "react-native";
 import {
   YStack,
   XStack,
@@ -9,9 +9,12 @@ import {
   Stack,
   ScrollView,
   Image,
-} from 'tamagui';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as ImagePicker from 'expo-image-picker';
+  Spinner,
+} from "tamagui";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as ImagePicker from "expo-image-picker";
+
+import { CloudinaryStorage } from "@/services/storage/cloudinary.adapter";
 
 type Props = {
   visible: boolean;
@@ -21,30 +24,82 @@ type Props = {
 
 export function AddStickerModal({ visible, onClose, onSave }: Props) {
   const insets = useSafeAreaInsets();
-  const [name, setName] = useState('');
+  const [name, setName] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const handleClose = () => {
-    setName('');
+    setName("");
     setImageUrl(null);
+    setLocalPreview(null);
     onClose();
   };
 
   const handleSave = () => {
-    if (!name.trim() || !imageUrl) {
-      Alert.alert('Missing Info', 'Please provide a name and select an image');
+    if (!name.trim()) {
+      Alert.alert("Missing Name", "Please provide a name for your sticker");
       return;
     }
+
+    if (!imageUrl) {
+      Alert.alert("Missing Image", "Please select an image");
+      return;
+    }
+
+    if (uploading) {
+      Alert.alert(
+        "Upload in progress",
+        "Please wait for image upload to complete"
+      );
+      return;
+    }
+
+    console.log("💾 [AddStickerModal] Saving sticker:", {
+      name: name.trim(),
+      imageUrl,
+    });
     onSave(name.trim(), imageUrl);
     handleClose();
   };
 
+  const uploadImage = async (localUri: string) => {
+    console.log("☁️ [AddStickerModal] Starting upload for:", localUri);
+
+    // Show local preview immediately
+    setLocalPreview(localUri);
+    setUploading(true);
+
+    try {
+      const result = await CloudinaryStorage.upload(localUri, {
+        folder: "stickers",
+      });
+
+      console.log("✅ [AddStickerModal] Upload successful:", result.url);
+
+      setImageUrl(result.url);
+      setLocalPreview(result.url);
+      Alert.alert("Success", "Image uploaded successfully!");
+    } catch (error) {
+      console.error("❌ [AddStickerModal] Upload failed:", error);
+      Alert.alert("Upload failed", "Could not upload image. Please try again.");
+      setLocalPreview(null);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const pickImage = async () => {
+    console.log("📷 [AddStickerModal] Requesting media library permissions");
+
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant photo library access');
+    if (status !== "granted") {
+      console.warn("⚠️ [AddStickerModal] Permission denied");
+      Alert.alert("Permission needed", "Please grant photo library access");
       return;
     }
+
+    console.log("📷 [AddStickerModal] Launching image picker");
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -53,17 +108,33 @@ export function AddStickerModal({ visible, onClose, onSave }: Props) {
       quality: 0.8,
     });
 
-    if (!result.canceled && result.assets[0]) {
-      setImageUrl(result.assets[0].uri);
+    if (result.canceled) {
+      console.log("❌ [AddStickerModal] Image picker canceled");
+      return;
     }
+
+    if (!result.assets[0]) {
+      console.error("❌ [AddStickerModal] No asset selected");
+      return;
+    }
+
+    const localUri = result.assets[0].uri;
+    console.log("✅ [AddStickerModal] Image selected:", localUri);
+
+    await uploadImage(localUri);
   };
 
   const takePhoto = async () => {
+    console.log("📸 [AddStickerModal] Requesting camera permissions");
+
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant camera access');
+    if (status !== "granted") {
+      console.warn("⚠️ [AddStickerModal] Camera permission denied");
+      Alert.alert("Permission needed", "Please grant camera access");
       return;
     }
+
+    console.log("📸 [AddStickerModal] Launching camera");
 
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
@@ -71,18 +142,43 @@ export function AddStickerModal({ visible, onClose, onSave }: Props) {
       quality: 0.8,
     });
 
-    if (!result.canceled && result.assets[0]) {
-      setImageUrl(result.assets[0].uri);
+    if (result.canceled) {
+      console.log("❌ [AddStickerModal] Camera canceled");
+      return;
     }
+
+    if (!result.assets[0]) {
+      console.error("❌ [AddStickerModal] No photo taken");
+      return;
+    }
+
+    const localUri = result.assets[0].uri;
+    console.log("✅ [AddStickerModal] Photo taken:", localUri);
+
+    await uploadImage(localUri);
+  };
+
+  const removeImage = () => {
+    setImageUrl(null);
+    setLocalPreview(null);
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={handleClose}
+    >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-        <Stack flex={1} backgroundColor="rgba(0,0,0,0.5)" justifyContent="flex-end">
+        <Stack
+          flex={1}
+          backgroundColor="rgba(0,0,0,0.5)"
+          justifyContent="flex-end"
+        >
           <Stack
             backgroundColor="$bg"
             borderTopLeftRadius="$8"
@@ -109,7 +205,7 @@ export function AddStickerModal({ visible, onClose, onSave }: Props) {
                 </XStack>
 
                 {/* Image Preview */}
-                {imageUrl ? (
+                {localPreview ? (
                   <Stack alignItems="center" gap="$3">
                     <Stack
                       width={200}
@@ -117,28 +213,66 @@ export function AddStickerModal({ visible, onClose, onSave }: Props) {
                       borderRadius="$6"
                       overflow="hidden"
                       backgroundColor="$background"
+                      position="relative"
                     >
                       <Image
-                        source={{ uri: imageUrl }}
+                        source={{ uri: localPreview }}
                         width="100%"
                         height="100%"
                         resizeMode="cover"
                       />
+                      {uploading && (
+                        <Stack
+                          position="absolute"
+                          top={0}
+                          left={0}
+                          right={0}
+                          bottom={0}
+                          backgroundColor="rgba(0,0,0,0.6)"
+                          alignItems="center"
+                          justifyContent="center"
+                        >
+                          <Spinner size="large" color="white" />
+                          <Text color="white" fontSize={14} marginTop="$2">
+                            Uploading...
+                          </Text>
+                        </Stack>
+                      )}
+                      {!uploading && (
+                        <Button
+                          position="absolute"
+                          top="$2"
+                          right="$2"
+                          backgroundColor="rgba(0,0,0,0.7)"
+                          borderRadius="$7"
+                          width={32}
+                          height={32}
+                          padding={0}
+                          onPress={removeImage}
+                          pressStyle={{ opacity: 0.8 }}
+                        >
+                          <Text color="white" fontSize={18}>
+                            ✕
+                          </Text>
+                        </Button>
+                      )}
                     </Stack>
-                    <Button
-                      backgroundColor="$background"
-                      borderColor="$borderColor"
-                      borderWidth={1}
-                      borderRadius="$5"
-                      height={40}
-                      paddingHorizontal="$4"
-                      onPress={pickImage}
-                      pressStyle={{ opacity: 0.7 }}
-                    >
-                      <Text color="$color" fontSize={14} fontWeight="600">
-                        Change Image
-                      </Text>
-                    </Button>
+                    {!uploading && (
+                      <Button
+                        backgroundColor="$background"
+                        borderColor="$borderColor"
+                        borderWidth={1}
+                        borderRadius="$5"
+                        height={40}
+                        paddingHorizontal="$4"
+                        onPress={pickImage}
+                        pressStyle={{ opacity: 0.7 }}
+                      >
+                        <Text color="$color" fontSize={14} fontWeight="600">
+                          Change Image
+                        </Text>
+                      </Button>
+                    )}
                   </Stack>
                 ) : (
                   <YStack gap="$2">
@@ -154,10 +288,16 @@ export function AddStickerModal({ visible, onClose, onSave }: Props) {
                         borderRadius="$5"
                         height={100}
                         onPress={pickImage}
+                        disabled={uploading}
+                        opacity={uploading ? 0.5 : 1}
                         pressStyle={{ opacity: 0.7 }}
                       >
                         <YStack alignItems="center" gap="$2">
-                          <Text fontSize={32}>📷</Text>
+                          {uploading ? (
+                            <Spinner size="small" />
+                          ) : (
+                            <Text fontSize={32}>📷</Text>
+                          )}
                           <Text color="$color" fontSize={14} fontWeight="600">
                             Gallery
                           </Text>
@@ -171,10 +311,16 @@ export function AddStickerModal({ visible, onClose, onSave }: Props) {
                         borderRadius="$5"
                         height={100}
                         onPress={takePhoto}
+                        disabled={uploading}
+                        opacity={uploading ? 0.5 : 1}
                         pressStyle={{ opacity: 0.7 }}
                       >
                         <YStack alignItems="center" gap="$2">
-                          <Text fontSize={32}>📸</Text>
+                          {uploading ? (
+                            <Spinner size="small" />
+                          ) : (
+                            <Text fontSize={32}>📸</Text>
+                          )}
                           <Text color="$color" fontSize={14} fontWeight="600">
                             Camera
                           </Text>
@@ -207,14 +353,23 @@ export function AddStickerModal({ visible, onClose, onSave }: Props) {
                   borderRadius="$6"
                   height={48}
                   onPress={handleSave}
-                  disabled={!name.trim() || !imageUrl}
-                  opacity={!name.trim() || !imageUrl ? 0.5 : 1}
+                  disabled={!name.trim() || !imageUrl || uploading}
+                  opacity={!name.trim() || !imageUrl || uploading ? 0.5 : 1}
                   pressStyle={{ opacity: 0.8 }}
                   marginTop="$2"
                 >
-                  <Text color="white" fontWeight="700" fontSize={16}>
-                    Add Sticker
-                  </Text>
+                  {uploading ? (
+                    <XStack gap="$2" alignItems="center">
+                      <Spinner size="small" color="white" />
+                      <Text color="white" fontWeight="700" fontSize={16}>
+                        Uploading...
+                      </Text>
+                    </XStack>
+                  ) : (
+                    <Text color="white" fontWeight="700" fontSize={16}>
+                      Add Sticker
+                    </Text>
+                  )}
                 </Button>
               </YStack>
             </ScrollView>

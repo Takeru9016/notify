@@ -1,37 +1,43 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { RefreshControl, Dimensions, Alert } from "react-native";
-import { YStack, XStack, Text, Button, ScrollView, Stack } from "tamagui";
+import {
+  YStack,
+  XStack,
+  Text,
+  Button,
+  ScrollView,
+  Stack,
+  Spinner,
+} from "tamagui";
 
 import { Sticker } from "@/types";
 import { StickerCard, AddStickerModal } from "@/components";
 import {
-  getStickers,
-  addSticker,
-  sendSticker,
-  deleteSticker,
-} from "@/services/mock/stickers.mock";
+  useStickers,
+  useCreateSticker,
+  useDeleteSticker,
+} from "@/hooks/useStickers";
+import { useProfileStore } from "@/store/profile";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 56) / 3; // 3 columns with padding
 
 export default function StickersScreen() {
-  const [stickers, setStickers] = useState<Sticker[]>([]);
+  const pairId = useProfileStore((s) => s.profile?.pairId);
+
+  const {
+    data: stickers = [],
+    isLoading,
+    refetch,
+    isRefetching,
+  } = useStickers();
+  const createSticker = useCreateSticker();
+  const deleteSticker = useDeleteSticker();
+
   const [modalVisible, setModalVisible] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const load = async () => {
-    const data = await getStickers();
-    setStickers(data);
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
 
   const onRefresh = async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
+    await refetch();
   };
 
   const handleAdd = () => {
@@ -39,12 +45,17 @@ export default function StickersScreen() {
   };
 
   const handleSave = async (name: string, imageUrl: string) => {
-    await addSticker({
-      name,
-      imageUrl,
-      createdBy: "user1",
-    });
-    await load();
+    try {
+      await createSticker.mutateAsync({
+        name,
+        imageUrl,
+      });
+      setModalVisible(false);
+      Alert.alert("Success! 🎉", "Sticker created successfully");
+    } catch (error) {
+      console.error("Failed to create sticker:", error);
+      Alert.alert("Error", "Failed to create sticker. Please try again.");
+    }
   };
 
   const handleSend = async (sticker: Sticker) => {
@@ -56,8 +67,11 @@ export default function StickersScreen() {
         {
           text: "Send",
           onPress: async () => {
-            await sendSticker(sticker.id);
-            Alert.alert("Sent! 💌", `${sticker.name} was sent to your partner`);
+            // TODO: Implement send notification in Phase 5
+            Alert.alert(
+              "Coming Soon! 💌",
+              "Sticker notifications will be added in Phase 5"
+            );
           },
         },
       ],
@@ -66,8 +80,29 @@ export default function StickersScreen() {
   };
 
   const handleDelete = async (id: string) => {
-    await deleteSticker(id);
-    await load();
+    Alert.alert(
+      "Delete Sticker",
+      "Are you sure you want to delete this sticker?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteSticker.mutateAsync(id);
+            } catch (error) {
+              console.error("Failed to delete sticker:", error);
+              Alert.alert(
+                "Error",
+                "Failed to delete sticker. Please try again."
+              );
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
   };
 
   const handleLongPress = (sticker: Sticker) => {
@@ -79,7 +114,10 @@ export default function StickersScreen() {
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={isLoading || isRefetching}
+            onRefresh={onRefresh}
+          />
         }
       >
         <YStack flex={1} padding="$4" paddingTop="$6" gap="$4">
@@ -94,11 +132,17 @@ export default function StickersScreen() {
               height={40}
               paddingHorizontal="$4"
               onPress={handleAdd}
+              disabled={!pairId || createSticker.isPending}
+              opacity={pairId && !createSticker.isPending ? 1 : 0.5}
               pressStyle={{ opacity: 0.8 }}
             >
-              <Text color="white" fontWeight="700" fontSize={15}>
-                + Add
-              </Text>
+              {createSticker.isPending ? (
+                <Spinner size="small" color="white" />
+              ) : (
+                <Text color="white" fontWeight="700" fontSize={15}>
+                  + Add
+                </Text>
+              )}
             </Button>
           </XStack>
 
@@ -119,7 +163,9 @@ export default function StickersScreen() {
             >
               <Text fontSize={60}>🎨</Text>
               <Text color="$muted" fontSize={16} textAlign="center">
-                No stickers yet.{"\n"}Tap + Add to create your first sticker!
+                {pairId
+                  ? "No stickers yet.\nTap + Add to create your first sticker!"
+                  : "Pair to start creating stickers."}
               </Text>
             </YStack>
           ) : (
