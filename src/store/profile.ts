@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 import { UserProfile } from "@/types";
-import * as profileService from "@/services/profile.service";
+import * as profileService from "@/services/profile/profile.service";
 
 export type ProfileState = {
   // State

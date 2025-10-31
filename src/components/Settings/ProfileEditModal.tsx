@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 
 import { UserProfile } from "@/types";
-import { uploadAvatar } from "@/services/profile.service";
+import { uploadAvatar } from "@/services/profile/profile.service";
 
 type Props = {
   visible: boolean;

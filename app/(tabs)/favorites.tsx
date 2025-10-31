@@ -1,6 +1,14 @@
-import { useEffect, useState } from "react";
-import { RefreshControl, Dimensions } from "react-native";
-import { YStack, XStack, Text, Button, ScrollView, Stack } from "tamagui";
+import { useState } from "react";
+import { RefreshControl, Dimensions, Alert } from "react-native";
+import {
+  YStack,
+  XStack,
+  Text,
+  Button,
+  ScrollView,
+  Stack,
+  Spinner,
+} from "tamagui";
 
 import { Favorite, FavoriteCategory } from "@/types";
 import {
@@ -9,11 +17,12 @@ import {
   FavoriteFormModal,
 } from "@/components";
 import {
-  getFavorites,
-  deleteFavorite,
-  updateFavorite,
-  addFavorite,
-} from "@/services/mock/favorites.mock";
+  useFavorites,
+  useCreateFavorite,
+  useUpdateFavorite,
+  useDeleteFavorite,
+} from "@/hooks/useFavorites";
+import { useProfileStore } from "@/store/profile";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2; // 2 columns with padding
@@ -21,7 +30,18 @@ const CARD_WIDTH = (width - 48) / 2; // 2 columns with padding
 type Filter = "all" | FavoriteCategory;
 
 export default function FavoritesScreen() {
-  const [favorites, setFavorites] = useState<Favorite[]>([]);
+  const pairId = useProfileStore((s) => s.profile?.pairId);
+
+  const {
+    data: favorites = [],
+    isLoading,
+    refetch,
+    isRefetching,
+  } = useFavorites();
+  const createFavorite = useCreateFavorite();
+  const updateFavorite = useUpdateFavorite();
+  const deleteFavorite = useDeleteFavorite();
+
   const [filter, setFilter] = useState<Filter>("all");
   const [selectedFavorite, setSelectedFavorite] = useState<Favorite | null>(
     null
@@ -29,21 +49,9 @@ export default function FavoritesScreen() {
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [formModalVisible, setFormModalVisible] = useState(false);
   const [editingFavorite, setEditingFavorite] = useState<Favorite | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const load = async () => {
-    const data = await getFavorites();
-    setFavorites(data);
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
 
   const onRefresh = async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
+    await refetch();
   };
 
   const handleCardPress = (favorite: Favorite) => {
@@ -57,25 +65,51 @@ export default function FavoritesScreen() {
   };
 
   const handleEdit = (favorite: Favorite) => {
+    setDetailModalVisible(false);
     setEditingFavorite(favorite);
     setFormModalVisible(true);
   };
 
   const handleDelete = async (id: string) => {
-    await deleteFavorite(id);
-    await load();
+    try {
+      await deleteFavorite.mutateAsync(id);
+      setDetailModalVisible(false);
+    } catch (error) {
+      console.error("Failed to delete favorite:", error);
+      Alert.alert("Error", "Failed to delete favorite. Please try again.");
+    }
   };
 
   const handleSave = async (
     data: Omit<Favorite, "id" | "createdAt" | "createdBy">
   ) => {
-    if (editingFavorite) {
-      await updateFavorite(editingFavorite.id, data);
-    } else {
-      await addFavorite({ ...data, createdBy: "user1" });
+    try {
+      if (editingFavorite) {
+        await updateFavorite.mutateAsync({
+          id: editingFavorite.id,
+          updates: {
+            title: data.title,
+            category: data.category,
+            description: data.description,
+            imageUrl: data.imageUrl,
+            url: data.url,
+          },
+        });
+      } else {
+        await createFavorite.mutateAsync({
+          title: data.title,
+          category: data.category,
+          description: data.description,
+          imageUrl: data.imageUrl,
+          url: data.url,
+        });
+      }
+      setFormModalVisible(false);
+      setEditingFavorite(null);
+    } catch (error) {
+      console.error("Failed to save favorite:", error);
+      Alert.alert("Error", "Failed to save favorite. Please try again.");
     }
-    await load();
-    setEditingFavorite(null);
   };
 
   const filteredFavorites =
@@ -97,7 +131,10 @@ export default function FavoritesScreen() {
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={isLoading || isRefetching}
+            onRefresh={onRefresh}
+          />
         }
       >
         <YStack flex={1} padding="$4" paddingTop="$6" gap="$4">
@@ -112,11 +149,17 @@ export default function FavoritesScreen() {
               height={40}
               paddingHorizontal="$4"
               onPress={handleAdd}
+              disabled={!pairId || createFavorite.isPending}
+              opacity={pairId && !createFavorite.isPending ? 1 : 0.5}
               pressStyle={{ opacity: 0.8 }}
             >
-              <Text color="white" fontWeight="700" fontSize={15}>
-                + Add
-              </Text>
+              {createFavorite.isPending ? (
+                <Spinner size="small" color="white" />
+              ) : (
+                <Text color="white" fontWeight="700" fontSize={15}>
+                  + Add
+                </Text>
+              )}
             </Button>
           </XStack>
 
@@ -160,7 +203,9 @@ export default function FavoritesScreen() {
             >
               <Text fontSize={60}>⭐</Text>
               <Text color="$muted" fontSize={16} textAlign="center">
-                No favorites yet.{"\n"}Tap + Add to create one!
+                {pairId
+                  ? "No favorites yet.\nTap + Add to create one!"
+                  : "Pair to start creating favorites."}
               </Text>
             </YStack>
           ) : (

@@ -13,7 +13,7 @@ import { initializeAuthListener } from "@/services/auth/auth.service";
 import {
   subscribeToProfile,
   subscribeToPartnerProfile,
-} from "@/services/profile.service";
+} from "@/services/profile/profile.service";
 import { testFirebaseConnection } from "@/utils/test/testFirebase";
 import { NotificationService } from "@/services/notification/notification.service";
 import { registerDevicePushToken } from "@/services/notification/push.registry";

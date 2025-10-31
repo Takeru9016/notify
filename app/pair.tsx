@@ -17,7 +17,7 @@ import {
 import { CodeInput, Countdown } from "@/components";
 import { usePairingStore } from "@/store/pairing";
 import { formatCode, unformatCode } from "@/utils/code-generator";
-import { subscribeToProfile } from "@/services/profile.service";
+import { subscribeToProfile } from "@/services/profile/profile.service";
 
 export default function PairScreen() {
   const {

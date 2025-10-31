@@ -23,12 +23,12 @@ import {
   getPartnerProfile,
   updateProfile,
   uploadAvatar,
-} from "@/services/profile.service";
+} from "@/services/profile/profile.service";
 import { ProfileEditModal, ThemeSelectorModal } from "@/components";
 import { usePairingStore } from "@/store/pairing";
 import { useProfileStore } from "@/store/profile";
 import { useThemeStore, ThemeMode } from "@/state/theme";
-import { unpair } from "@/services/pairing.service";
+import { unpair } from "@/services/pairing/pairing.service";
 import { NotificationService } from "@/services/notification/notification.service";
 
 export default function SettingsScreen() {

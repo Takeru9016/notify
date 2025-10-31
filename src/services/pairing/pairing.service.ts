@@ -13,8 +13,8 @@ import {
 } from "firebase/firestore";
 
 import { db } from "@/config/firebase";
-import { getCurrentUserId } from "./auth/auth.service";
-import { getProfile, updateProfile } from "./profile.service";
+import { getCurrentUserId } from "@/services/auth/auth.service";
+import { getProfile, updateProfile } from "@/services/profile/profile.service";
 import { PairCode, Pair, UserProfile } from "@/types";
 import { generateRandomCode, unformatCode } from "@/utils/code-generator";
 

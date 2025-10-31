@@ -8,9 +8,9 @@ import {
 } from "firebase/firestore";
 
 import { db } from "@/config/firebase";
-import { getCurrentUserId } from "./auth/auth.service";
 import { UserProfile } from "@/types";
-import { CloudinaryStorage } from "./storage/cloudinary.adapter";
+import { getCurrentUserId } from "@/services/auth/auth.service";
+import { CloudinaryStorage } from "@/services/storage/cloudinary.adapter";
 
 /**
  * Get user profile from Firestore
