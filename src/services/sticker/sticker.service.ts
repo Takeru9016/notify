@@ -17,6 +17,7 @@ import { db } from "@/config/firebase";
 import { getCurrentUserId } from "@/services/auth/auth.service";
 import { Sticker } from "@/types";
 import { useProfileStore } from "@/store/profile";
+import { notifyPartner } from "@/services/notification/notifyPartner";
 
 type CreateStickerInput = {
   name: string;
@@ -95,13 +96,17 @@ export const StickerService = {
       throw new Error("Not authenticated");
     }
 
-    const pairId = requirePairId();
+    const pairId = useProfileStore.getState().profile?.pairId;
+    if (!pairId) {
+      console.error("❌ [StickerService.create] No pairId found");
+      throw new Error("Not paired");
+    }
 
     const payload = {
-      pairId,
       name: input.name,
       imageUrl: input.imageUrl,
       createdBy: uid,
+      pairId,
       createdAt: nowMs(),
       updatedAt: serverTimestamp(),
     };
@@ -117,6 +122,15 @@ export const StickerService = {
         "✅ [StickerService.create] Created sticker with ID:",
         ref.id
       );
+
+      // Send notification to partner
+      await notifyPartner({
+        type: "sticker_sent",
+        title: "🎨 New Sticker",
+        body: `${input.name}`,
+        data: { stickerId: ref.id, imageUrl: input.imageUrl },
+      });
+
       return ref.id;
     } catch (error) {
       console.error("❌ [StickerService.create] Error:", error);

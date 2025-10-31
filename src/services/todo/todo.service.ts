@@ -17,6 +17,7 @@ import { db } from "@/config/firebase";
 import { getCurrentUserId } from "@/services/auth/auth.service";
 import { Todo, TodoPriority } from "@/types";
 import { useProfileStore } from "@/store/profile";
+import { notifyPartner } from "@/services/notification/notifyPartner";
 
 type CreateTodoInput = {
   title: string;
@@ -94,16 +95,20 @@ export const TodoService = {
       throw new Error("Not authenticated");
     }
 
-    const pairId = requirePairId();
+    const pairId = useProfileStore.getState().profile?.pairId;
+    if (!pairId) {
+      console.error("❌ [TodoService.create] No pairId found");
+      throw new Error("Not paired");
+    }
 
     const payload = {
-      pairId,
       title: input.title,
-      description: input.description,
+      description: input.description || "",
       dueDate: input.dueDate,
       isCompleted: false,
       priority: input.priority,
       createdBy: uid,
+      pairId,
       createdAt: nowMs(),
       updatedAt: serverTimestamp(),
     };
@@ -113,6 +118,15 @@ export const TodoService = {
     try {
       const ref = await addDoc(collection(db, "todos"), payload);
       console.log("✅ [TodoService.create] Created todo with ID:", ref.id);
+
+      // Send notification to partner
+      await notifyPartner({
+        type: "todo_created",
+        title: "✅ New Todo",
+        body: `${input.title}`,
+        data: { todoId: ref.id },
+      });
+
       return ref.id;
     } catch (error) {
       console.error("❌ [TodoService.create] Error:", error);

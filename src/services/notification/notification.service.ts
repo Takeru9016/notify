@@ -1,193 +1,277 @@
-import * as Notifications from "expo-notifications";
-import { Platform } from "react-native";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from "firebase/firestore";
 import { db } from "@/config/firebase";
 import { getCurrentUserId } from "@/services/auth/auth.service";
+import { AppNotification, AppNotificationType } from "@/types";
 
-// Foreground behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    // iOS 15+ foreground behavior
-    shouldShowBanner: true, // formerly shouldShowAlert
-    shouldShowList: true,   // appear in Notification Center list
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
-
-export type NotificationCategory =
-  | "reminders"
-  | "stickers"
-  | "favorites"
-  | "system";
-
-export type ScheduleOptions = {
+type CreateNotificationInput = {
+  recipientUid: string;
+  type: AppNotificationType;
   title: string;
   body: string;
   data?: Record<string, any>;
-  category?: NotificationCategory;
-  when: Date; // absolute time
-  androidChannelId?: string;
-  iosSound?: string | boolean; // true -> default sound
 };
 
-export const NotificationService = {
-  async init(): Promise<void> {
-    await this.ensurePermissions();
-    await this.configureAndroidChannels();
-  },
+function nowMs(): number {
+  return Date.now();
+}
 
-  async ensurePermissions(): Promise<boolean> {
-    const settings = await Notifications.getPermissionsAsync();
-    if (
-      settings.granted ||
-      settings.ios?.status === Notifications.IosAuthorizationStatus.AUTHORIZED
-    ) {
-      return true;
+export const AppNotificationService = {
+  /**
+   * List notifications for the current user
+   */
+  async listForCurrentUser(): Promise<AppNotification[]> {
+    const uid = getCurrentUserId();
+    if (!uid) {
+      console.error(
+        "❌ [AppNotificationService.listForCurrentUser] Not authenticated"
+      );
+      throw new Error("Not authenticated");
     }
-    const req = await Notifications.requestPermissionsAsync({
-      ios: {
-        allowAlert: true,
-        allowBadge: true,
-        allowSound: true,
-      },
-    });
-    return (
-      req.granted ||
-      req.ios?.status === Notifications.IosAuthorizationStatus.AUTHORIZED
+
+    console.log(
+      "📋 [AppNotificationService.listForCurrentUser] Querying notifications for uid:",
+      uid
     );
+
+    const q = query(
+      collection(db, "notifications"),
+      where("recipientUid", "==", uid),
+      orderBy("createdAt", "desc"),
+      limit(100)
+    );
+
+    const snap = await getDocs(q);
+    console.log(
+      "📋 [AppNotificationService.listForCurrentUser] Found",
+      snap.docs.length,
+      "notifications"
+    );
+
+    const notifications = snap.docs.map((d) => {
+      const data = d.data() as any;
+      console.log(
+        "📄 [AppNotificationService.listForCurrentUser] Notification doc:",
+        d.id,
+        data
+      );
+
+      const notification: AppNotification = {
+        id: d.id,
+        type: String(data.type ?? "other") as AppNotificationType,
+        title: String(data.title ?? ""),
+        body: String(data.body ?? ""),
+        senderUid: String(data.senderUid ?? ""),
+        recipientUid: String(data.recipientUid ?? ""),
+        read: Boolean(data.read ?? false),
+        createdAt: Number(data.createdAt ?? 0),
+        data: data.data || {},
+      };
+      return notification;
+    });
+
+    return notifications;
   },
 
-  async configureAndroidChannels(): Promise<void> {
-    if (Platform.OS !== "android") return;
-
-    const channels: Array<{
-      id: string;
-      name: string;
-      importance: Notifications.AndroidImportance;
-      sound?: string;
-    }> = [
-      {
-        id: "default",
-        name: "General",
-        importance: Notifications.AndroidImportance.DEFAULT,
-      },
-      {
-        id: "reminders",
-        name: "Reminders",
-        importance: Notifications.AndroidImportance.HIGH,
-        sound: "default",
-      },
-      {
-        id: "stickers",
-        name: "Stickers",
-        importance: Notifications.AndroidImportance.DEFAULT,
-      },
-      {
-        id: "favorites",
-        name: "Favorites",
-        importance: Notifications.AndroidImportance.LOW,
-      },
-      {
-        id: "system",
-        name: "System",
-        importance: Notifications.AndroidImportance.DEFAULT,
-      },
-    ];
-
-    for (const ch of channels) {
-      await Notifications.setNotificationChannelAsync(ch.id, {
-        name: ch.name,
-        importance: ch.importance,
-        lightColor: "#4F46E5",
-        vibrationPattern: [0, 200, 150, 200],
-        lockscreenVisibility:
-          Notifications.AndroidNotificationVisibility.PUBLIC,
-        sound: ch.sound,
-      });
+  /**
+   * Create a notification for a partner
+   */
+  async create(input: CreateNotificationInput): Promise<string> {
+    const uid = getCurrentUserId();
+    if (!uid) {
+      console.error("❌ [AppNotificationService.create] Not authenticated");
+      throw new Error("Not authenticated");
     }
-  },
 
-  async scheduleLocalNotification(opts: ScheduleOptions): Promise<string> {
-    const granted = await this.ensurePermissions();
-    if (!granted) throw new Error("Notification permissions not granted");
-
-    const trigger: Notifications.NotificationTriggerInput = {
-      date: opts.when,
-      channelId:
-        Platform.OS === "android"
-          ? opts.androidChannelId || categoryToChannel(opts.category)
-          : undefined,
-      repeats: false,
+    const payload = {
+      type: input.type,
+      title: input.title,
+      body: input.body,
+      senderUid: uid,
+      recipientUid: input.recipientUid,
+      read: false,
+      createdAt: nowMs(),
+      updatedAt: serverTimestamp(),
+      data: input.data || {},
     };
 
-    const id = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: opts.title,
-        body: opts.body,
-        data: opts.data,
-        sound: Platform.OS === "ios" ? opts.iosSound ?? true : undefined,
-        priority: Notifications.AndroidNotificationPriority.HIGH,
-      },
-      trigger,
-    });
+    console.log(
+      "➕ [AppNotificationService.create] Creating notification with payload:",
+      payload
+    );
 
-    // Optional record in Firestore
     try {
-      const uid = getCurrentUserId();
-      if (uid) {
-        await setDoc(
-          doc(db, "users", uid, "scheduledNotifications", id),
-          {
-            id,
-            category: opts.category || "system",
-            title: opts.title,
-            when: opts.when.toISOString(),
-            createdAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
-      }
-    } catch {
-      // non-fatal
+      const ref = await addDoc(collection(db, "notifications"), payload);
+      console.log(
+        "✅ [AppNotificationService.create] Created notification with ID:",
+        ref.id
+      );
+      return ref.id;
+    } catch (error) {
+      console.error("❌ [AppNotificationService.create] Error:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Mark a notification as read
+   */
+  async markAsRead(id: string): Promise<void> {
+    const uid = getCurrentUserId();
+    if (!uid) {
+      console.error("❌ [AppNotificationService.markAsRead] Not authenticated");
+      throw new Error("Not authenticated");
     }
 
-    return id;
+    console.log(
+      "✏️ [AppNotificationService.markAsRead] Marking notification as read:",
+      id
+    );
+
+    const ref = doc(db, "notifications", id);
+
+    try {
+      await updateDoc(ref, {
+        read: true,
+        updatedAt: serverTimestamp(),
+      });
+      console.log(
+        "✅ [AppNotificationService.markAsRead] Successfully marked as read:",
+        id
+      );
+    } catch (error) {
+      console.error("❌ [AppNotificationService.markAsRead] Error:", error);
+      throw error;
+    }
   },
 
-  async cancelNotification(id: string): Promise<void> {
-    await Notifications.cancelScheduledNotificationAsync(id);
+  /**
+   * Mark all notifications as read for current user
+   */
+  async markAllAsRead(): Promise<void> {
+    const uid = getCurrentUserId();
+    if (!uid) {
+      console.error(
+        "❌ [AppNotificationService.markAllAsRead] Not authenticated"
+      );
+      throw new Error("Not authenticated");
+    }
+
+    console.log(
+      "✏️ [AppNotificationService.markAllAsRead] Marking all notifications as read for uid:",
+      uid
+    );
+
+    const q = query(
+      collection(db, "notifications"),
+      where("recipientUid", "==", uid),
+      where("read", "==", false)
+    );
+
+    try {
+      const snap = await getDocs(q);
+      console.log(
+        "📋 [AppNotificationService.markAllAsRead] Found",
+        snap.docs.length,
+        "unread notifications"
+      );
+
+      const promises = snap.docs.map((d) =>
+        updateDoc(doc(db, "notifications", d.id), {
+          read: true,
+          updatedAt: serverTimestamp(),
+        })
+      );
+
+      await Promise.all(promises);
+      console.log(
+        "✅ [AppNotificationService.markAllAsRead] Successfully marked all as read"
+      );
+    } catch (error) {
+      console.error("❌ [AppNotificationService.markAllAsRead] Error:", error);
+      throw error;
+    }
   },
 
-  async cancelAll(): Promise<void> {
-    await Notifications.cancelAllScheduledNotificationsAsync();
+  /**
+   * Delete a notification
+   */
+  async remove(id: string): Promise<void> {
+    const uid = getCurrentUserId();
+    if (!uid) {
+      console.error("❌ [AppNotificationService.remove] Not authenticated");
+      throw new Error("Not authenticated");
+    }
+
+    console.log(
+      "🗑️ [AppNotificationService.remove] Deleting notification:",
+      id
+    );
+
+    const ref = doc(db, "notifications", id);
+
+    try {
+      await deleteDoc(ref);
+      console.log(
+        "✅ [AppNotificationService.remove] Successfully deleted notification:",
+        id
+      );
+    } catch (error) {
+      console.error("❌ [AppNotificationService.remove] Error:", error);
+      throw error;
+    }
   },
 
-  async getAllScheduled(): Promise<Notifications.NotificationRequest[]> {
-    return Notifications.getAllScheduledNotificationsAsync();
-  },
+  /**
+   * Delete all notifications for current user
+   */
+  async clearAll(): Promise<void> {
+    const uid = getCurrentUserId();
+    if (!uid) {
+      console.error("❌ [AppNotificationService.clearAll] Not authenticated");
+      throw new Error("Not authenticated");
+    }
 
-  // Expo push token (dev). In production builds we can also use getDevicePushTokenAsync(Firebase/APNs).
-  async getPushToken(): Promise<string | null> {
-    const granted = await this.ensurePermissions();
-    if (!granted) return null;
+    console.log(
+      "🗑️ [AppNotificationService.clearAll] Clearing all notifications for uid:",
+      uid
+    );
 
-    const token = await Notifications.getExpoPushTokenAsync();
-    return token.data ?? null;
+    const q = query(
+      collection(db, "notifications"),
+      where("recipientUid", "==", uid)
+    );
+
+    try {
+      const snap = await getDocs(q);
+      console.log(
+        "📋 [AppNotificationService.clearAll] Found",
+        snap.docs.length,
+        "notifications to delete"
+      );
+
+      const promises = snap.docs.map((d) =>
+        deleteDoc(doc(db, "notifications", d.id))
+      );
+
+      await Promise.all(promises);
+      console.log(
+        "✅ [AppNotificationService.clearAll] Successfully cleared all notifications"
+      );
+    } catch (error) {
+      console.error("❌ [AppNotificationService.clearAll] Error:", error);
+      throw error;
+    }
   },
 };
-
-function categoryToChannel(category?: NotificationCategory): string {
-  switch (category) {
-    case "reminders":
-      return "reminders";
-    case "stickers":
-      return "stickers";
-    case "favorites":
-      return "favorites";
-    case "system":
-    default:
-      return "default";
-  }
-}

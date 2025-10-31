@@ -51,6 +51,28 @@ export type Notification = {
   read: boolean;
 };
 
+// Add these to your existing types file:
+
+export type AppNotificationType =
+  | "todo_created"
+  | "todo_completed"
+  | "favorite_added"
+  | "sticker_sent"
+  | "pair_connected"
+  | "other";
+
+export type AppNotification = {
+  id: string;
+  type: AppNotificationType;
+  title: string;
+  body: string;
+  senderUid: string;
+  recipientUid: string;
+  read: boolean;
+  createdAt: number;
+  data?: Record<string, any>;
+};
+
 export type UserProfile = {
   id: string;
   uid: string;

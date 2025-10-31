@@ -17,6 +17,7 @@ import { db } from "@/config/firebase";
 import { getCurrentUserId } from "@/services/auth/auth.service";
 import { Favorite, FavoriteCategory } from "@/types";
 import { useProfileStore } from "@/store/profile";
+import { notifyPartner } from "@/services/notification/notifyPartner";
 
 type CreateFavoriteInput = {
   title: string;
@@ -93,7 +94,6 @@ export const FavoriteService = {
 
     return favorites;
   },
-
   async create(input: CreateFavoriteInput): Promise<string> {
     const uid = getCurrentUserId();
     if (!uid) {
@@ -101,16 +101,20 @@ export const FavoriteService = {
       throw new Error("Not authenticated");
     }
 
-    const pairId = requirePairId();
+    const pairId = useProfileStore.getState().profile?.pairId;
+    if (!pairId) {
+      console.error("❌ [FavoriteService.create] No pairId found");
+      throw new Error("Not paired");
+    }
 
     const payload = {
-      pairId,
       title: input.title,
       category: input.category,
-      description: input.description,
+      description: input.description || "",
       imageUrl: input.imageUrl || null,
       url: input.url || null,
       createdBy: uid,
+      pairId,
       createdAt: nowMs(),
       updatedAt: serverTimestamp(),
     };
@@ -126,6 +130,15 @@ export const FavoriteService = {
         "✅ [FavoriteService.create] Created favorite with ID:",
         ref.id
       );
+
+      // Send notification to partner
+      await notifyPartner({
+        type: "favorite_added",
+        title: "⭐ New Favorite",
+        body: `${input.title}`,
+        data: { favoriteId: ref.id, category: input.category },
+      });
+
       return ref.id;
     } catch (error) {
       console.error("❌ [FavoriteService.create] Error:", error);
