@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { RefreshControl, Alert } from "react-native";
-import * as Haptics from "expo-haptics";
+import { useState, useMemo } from "react";
+import { RefreshControl } from "react-native";
+import { router } from "expo-router";
 import {
   YStack,
   XStack,
@@ -11,12 +11,51 @@ import {
   Spinner,
   Image,
 } from "tamagui";
+import {
+  Heart,
+  Bell,
+  CheckSquare,
+  Star,
+  Smile,
+  Flame,
+} from "@tamagui/lucide-icons";
 
 import { useProfileStore } from "@/store/profile";
 import { useAppNotifications, useMarkAsRead } from "@/hooks/useAppNotification";
 import { AppNotification } from "@/types";
-import { router } from "expo-router";
 import { ScreenContainer } from "@/components";
+import { triggerLightHaptic, triggerSelectionHaptic } from "@/state/haptics";
+
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  if (hour < 21) return "Good evening";
+  else return "Good night";
+};
+
+const formatRelativeTime = (date: Date) => {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHr = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHr / 24);
+
+  if (diffSec < 60) return "Just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHr < 24) return `${diffHr}h ago`;
+  if (diffDay === 1) return "Yesterday";
+  if (diffDay < 7) return `${diffDay}d ago`;
+  return date.toLocaleDateString();
+};
+
+const getNotifIcon = (type: AppNotification["type"]) => {
+  if (type === "todo_reminder") return CheckSquare;
+  if (type === "sticker_sent") return Smile;
+  if (type === "favorite_added") return Star;
+  return Bell;
+};
 
 export default function HomeScreen() {
   const profile = useProfileStore((s) => s.profile);
@@ -32,19 +71,42 @@ export default function HomeScreen() {
   const unreadCount = notifications.filter((n) => !n.read).length;
   const latestNotifications = notifications.slice(0, 3);
 
+  const todayStats = useMemo(() => {
+    if (!notifications.length) {
+      return {
+        updatesToday: 0,
+        stickersThisWeek: 0,
+      };
+    }
+    const now = new Date();
+    const todayDateStr = now.toDateString();
+    const updatesToday = notifications.filter((n) => {
+      const d = new Date(n.createdAt);
+      return d.toDateString() === todayDateStr;
+    }).length;
+
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const stickersThisWeek = notifications.filter(
+      (n) =>
+        n.type === "sticker_sent" &&
+        new Date(n.createdAt).getTime() >= weekAgo.getTime()
+    ).length;
+
+    return { updatesToday, stickersThisWeek };
+  }, [notifications]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    triggerLightHaptic();
     await refetch();
     setRefreshing(false);
   };
 
-  const handleNotificationPress = async (notif: AppNotification) => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const handleNotificationPress = (notif: AppNotification) => {
+    triggerSelectionHaptic();
     if (!notif.read) {
       markAsRead.mutate(notif.id);
     }
-    // Navigate based on notification type
     if (notif.type === "todo_reminder") {
       router.push("/(tabs)/todos");
     } else if (notif.type === "sticker_sent") {
@@ -54,12 +116,11 @@ export default function HomeScreen() {
     }
   };
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good Morning";
-    if (hour < 18) return "Good Afternoon";
-    return "Good Evening";
-  };
+  const greeting = getGreeting();
+  const displayName = profile?.displayName || "you";
+
+  // Fake “connection streak” for now – can be real later
+  const connectionStreakDays = Math.max(1, Math.min(7, unreadCount ? 2 : 3));
 
   return (
     <ScreenContainer title="Home">
@@ -69,268 +130,513 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
-        <YStack flex={1} padding="$4" paddingTop="$6" gap="$5">
-          {/* Header */}
-          <YStack gap="$2">
-            <Text color="$muted" fontSize={14} fontWeight="600">
-              {getGreeting()}
-            </Text>
-            <Text color="$color" fontSize={32} fontWeight="900">
-              {profile?.displayName || "Welcome"}
-            </Text>
-          </YStack>
+        <YStack flex={1} padding="$5" paddingTop="$6" gap="$5">
+          {/* Hero Couple Card  */}
+          <Stack
+            borderRadius="$8"
+            padding="$5"
+            overflow="hidden"
+            backgroundColor="$primarySoft"
+            borderWidth={1}
+            borderColor="$borderColor"
+          >
+            <XStack gap="$4" alignItems="center">
+              <YStack flex={1} gap="$2">
+                <XStack alignItems="center" gap="$2">
+                  <Heart
+                    size={16}
+                    color="#ffffff"
+                    fill="rgba(255,255,255,0.7)"
+                  />
+                  <Text
+                    fontFamily="$body"
+                    color="$colorMuted"
+                    fontSize={13}
+                    fontWeight="600"
+                    textTransform="uppercase"
+                    letterSpacing={0.6}
+                  >
+                    {greeting}
+                  </Text>
+                </XStack>
 
-          {/* Partner Card */}
-          {partner ? (
-            <Stack
-              backgroundColor="$background"
-              borderRadius="$7"
-              padding="$4"
-              shadowColor="$shadowColor"
-              shadowOffset={{ width: 0, height: 2 }}
-              shadowOpacity={0.1}
-              shadowRadius={8}
-            >
-              <XStack gap="$3" alignItems="center">
+                <Text
+                  fontFamily="$heading"
+                  color="$color"
+                  fontSize={24}
+                  fontWeight="700"
+                  lineHeight={30}
+                >
+                  {displayName} &{" "}
+                  {partner?.displayName ? partner.displayName : "your partner"}
+                </Text>
+
+                <Text
+                  fontFamily="$body"
+                  color="$colorMuted"
+                  fontSize={14}
+                  lineHeight={20}
+                >
+                  {todayStats.updatesToday > 0
+                    ? `${todayStats.updatesToday} update${
+                        todayStats.updatesToday > 1 ? "s" : ""
+                      } today • ${unreadCount} unread`
+                    : unreadCount > 0
+                    ? `${unreadCount} unread update${
+                        unreadCount > 1 ? "s" : ""
+                      } waiting`
+                    : "No new updates yet – send something sweet today."}
+                </Text>
+              </YStack>
+
+              {/* Partner avatar / initials */}
+              <Stack alignItems="center" gap="$2">
                 <Stack
                   width={60}
                   height={60}
                   borderRadius={30}
                   overflow="hidden"
-                  backgroundColor="$primary"
+                  backgroundColor="$bgCard"
+                  borderWidth={2}
+                  borderColor="$primary"
+                  alignItems="center"
+                  justifyContent="center"
                 >
-                  {partner.avatarUrl ? (
+                  {partner?.avatarUrl ? (
                     <Image
                       source={{ uri: partner.avatarUrl }}
                       width="100%"
                       height="100%"
-                      resizeMode="cover"
+                      objectFit="cover"
                     />
                   ) : (
-                    <Stack
-                      width="100%"
-                      height="100%"
-                      alignItems="center"
-                      justifyContent="center"
+                    <Text
+                      fontFamily="$heading"
+                      color="$primary"
+                      fontSize={26}
+                      fontWeight="700"
                     >
-                      <Text color="white" fontSize={24} fontWeight="900">
-                        {partner.displayName.charAt(0).toUpperCase()}
-                      </Text>
-                    </Stack>
-                  )}
-                </Stack>
-                <YStack flex={1} gap="$1">
-                  <Text color="$muted" fontSize={12} fontWeight="600">
-                    CONNECTED WITH
-                  </Text>
-                  <Text color="$color" fontSize={18} fontWeight="700">
-                    {partner.displayName}
-                  </Text>
-                  {partner.bio && (
-                    <Text color="$muted" fontSize={13} numberOfLines={1}>
-                      {partner.bio}
+                      {partner?.displayName
+                        ? partner.displayName.charAt(0).toUpperCase()
+                        : "?"}
                     </Text>
                   )}
-                </YStack>
-                <Text fontSize={24}>💕</Text>
-              </XStack>
-            </Stack>
-          ) : (
-            <Stack
-              backgroundColor="$background"
-              borderRadius="$7"
-              padding="$4"
-              alignItems="center"
-              gap="$2"
-            >
-              <Spinner size="small" />
-              <Text color="$muted" fontSize={14}>
-                Loading partner info...
-              </Text>
-            </Stack>
-          )}
-
-          {/* Latest Notifications */}
-          <YStack gap="$3">
-            <XStack alignItems="center" justifyContent="space-between">
-              <Text color="$color" fontSize={20} fontWeight="700">
-                Latest Updates
-              </Text>
-              {unreadCount > 0 && (
-                <Stack
-                  backgroundColor="$primary"
-                  borderRadius="$7"
-                  paddingHorizontal="$2"
-                  paddingVertical="$1"
-                  minWidth={24}
-                  alignItems="center"
-                  justifyContent="center"
+                </Stack>
+                <Text
+                  fontFamily="$body"
+                  color="$colorMuted"
+                  fontSize={11}
+                  textAlign="center"
                 >
-                  <Text color="white" fontSize={12} fontWeight="700">
-                    {unreadCount}
-                  </Text>
+                  Connected
+                </Text>
+              </Stack>
+            </XStack>
+          </Stack>
+
+          {/* Today at a glance */}
+          <YStack gap="$2">
+            <Text
+              fontFamily="$heading"
+              color="$color"
+              fontSize={18}
+              fontWeight="700"
+            >
+              Today at a glance
+            </Text>
+            <XStack gap="$2" flexWrap="wrap">
+              <StatPill
+                label="Updates today"
+                value={todayStats.updatesToday}
+                icon={Bell}
+                tone="primary"
+              />
+              <StatPill
+                label="Unread"
+                value={unreadCount}
+                icon={Bell}
+                tone={unreadCount > 0 ? "highlight" : "neutral"}
+              />
+              <StatPill
+                label="Stickers this week"
+                value={todayStats.stickersThisWeek}
+                icon={Smile}
+                tone="soft"
+              />
+            </XStack>
+          </YStack>
+
+          {/* Notifications mini-timeline */}
+          <Stack paddingTop="$3" paddingBottom="$2">
+            <YStack gap="$3">
+              <XStack alignItems="center" justifyContent="space-between">
+                <Text
+                  fontFamily="$heading"
+                  color="$color"
+                  fontSize={18}
+                  fontWeight="700"
+                >
+                  Latest updates
+                </Text>
+                {unreadCount > 0 && (
+                  <XStack alignItems="center" gap="$1">
+                    <Stack
+                      width={8}
+                      height={8}
+                      borderRadius={4}
+                      backgroundColor="$primary"
+                    />
+                    <Text fontFamily="$body" color="$colorMuted" fontSize={12}>
+                      {unreadCount} unread
+                    </Text>
+                  </XStack>
+                )}
+              </XStack>
+
+              {isLoading ? (
+                <YStack gap="$2.5">
+                  {[1, 2, 3].map((i) => (
+                    <Stack
+                      key={i}
+                      backgroundColor="$bgCard"
+                      borderRadius="$6"
+                      padding="$3"
+                      borderWidth={1}
+                      borderColor="$borderColor"
+                      alignItems="center"
+                      justifyContent="center"
+                      height={68}
+                    >
+                      <Spinner size="small" color="$primary" />
+                    </Stack>
+                  ))}
+                </YStack>
+              ) : latestNotifications.length > 0 ? (
+                <YStack gap="$2.5">
+                  {latestNotifications.map((notif, index) => {
+                    const createdAt = new Date(notif.createdAt);
+                    const relativeTime = formatRelativeTime(createdAt);
+                    const isLast = index === latestNotifications.length - 1;
+                    const Icon = getNotifIcon(notif.type);
+
+                    return (
+                      <Button
+                        key={notif.id}
+                        unstyled
+                        onPress={() => handleNotificationPress(notif)}
+                        pressStyle={{ opacity: 0.7, scale: 0.98 }}
+                      >
+                        <XStack gap="$2.5">
+                          {/* Timeline column */}
+                          <YStack alignItems="center" width={16}>
+                            <Stack
+                              width={10}
+                              height={10}
+                              borderRadius={5}
+                              backgroundColor={
+                                notif.read ? "$borderColor" : "$primary"
+                              }
+                            />
+                            {!isLast && (
+                              <Stack
+                                marginTop="$1"
+                                marginBottom="$1"
+                                width={2}
+                                flex={1}
+                                backgroundColor="$borderColor"
+                              />
+                            )}
+                          </YStack>
+
+                          {/* Content card */}
+                          <Stack
+                            flex={1}
+                            backgroundColor="$bgCard"
+                            borderRadius="$7"
+                            padding="$3"
+                            borderWidth={1}
+                            borderColor="$borderColor"
+                            margin="$1"
+                            opacity={notif.read ? 0.7 : 1}
+                          >
+                            <XStack gap="$2" alignItems="flex-start">
+                              <Stack
+                                width={28}
+                                height={28}
+                                borderRadius={14}
+                                backgroundColor="$primarySoft"
+                                alignItems="center"
+                                justifyContent="center"
+                              >
+                                <Icon
+                                  size={16}
+                                  color={notif.read ? "#A28A82" : "$primary"}
+                                />
+                              </Stack>
+                              <YStack flex={1} gap="$1">
+                                <Text
+                                  fontFamily="$body"
+                                  color="$color"
+                                  fontSize={15}
+                                  fontWeight="700"
+                                  numberOfLines={1}
+                                >
+                                  {notif.title}
+                                </Text>
+                                <Text
+                                  fontFamily="$body"
+                                  color="$colorMuted"
+                                  fontSize={13}
+                                  numberOfLines={2}
+                                  lineHeight={18}
+                                >
+                                  {notif.body}
+                                </Text>
+                                <Text
+                                  fontFamily="$body"
+                                  color="$colorMuted"
+                                  fontSize={11}
+                                  marginTop="$0.5"
+                                >
+                                  {relativeTime}
+                                </Text>
+                              </YStack>
+                            </XStack>
+                          </Stack>
+                        </XStack>
+                      </Button>
+                    );
+                  })}
+
+                  <Button
+                    marginTop="$3"
+                    backgroundColor="transparent"
+                    borderRadius="$8"
+                    borderWidth={1}
+                    borderColor="$primary"
+                    height={46}
+                    onPress={() => {
+                      triggerSelectionHaptic();
+                      router.push("/(tabs)/notification");
+                    }}
+                    pressStyle={{ opacity: 0.8, scale: 0.98 }}
+                  >
+                    <XStack
+                      alignItems="center"
+                      justifyContent="center"
+                      gap="$2"
+                    >
+                      <Bell size={16} color="$primary" />
+                      <Text
+                        fontFamily="$body"
+                        color="$primary"
+                        fontSize={15}
+                        fontWeight="700"
+                      >
+                        View all updates
+                      </Text>
+                    </XStack>
+                  </Button>
+                </YStack>
+              ) : (
+                <Stack
+                  backgroundColor="$bgCard"
+                  borderRadius="$7"
+                  padding="$4"
+                  alignItems="center"
+                  gap="$3"
+                  borderWidth={1}
+                  borderColor="$borderColor"
+                >
+                  <Stack
+                    width={40}
+                    height={40}
+                    borderRadius={20}
+                    backgroundColor="$primarySoft"
+                    alignItems="center"
+                    justifyContent="center"
+                  >
+                    <Bell size={20} color="$primary" />
+                  </Stack>
+                  <YStack gap="$1" alignItems="center">
+                    <Text
+                      fontFamily="$heading"
+                      color="$color"
+                      fontSize={17}
+                      fontWeight="700"
+                    >
+                      No notifications yet
+                    </Text>
+                    <Text
+                      fontFamily="$body"
+                      color="$colorMuted"
+                      fontSize={14}
+                      textAlign="center"
+                    >
+                      You'll see reminders, stickers, and favorites from your
+                      partner here.
+                    </Text>
+                  </YStack>
                 </Stack>
               )}
+            </YStack>
+          </Stack>
+
+          {/* Connection card (replacing Quick Actions) */}
+          <Stack
+            marginTop="$4"
+            marginBottom="$4"
+            backgroundColor="$bgCard"
+            borderRadius="$8"
+            padding="$4"
+            borderWidth={1}
+            borderColor="$borderColor"
+            gap="$3"
+          >
+            <XStack alignItems="center" gap="$3">
+              <Stack
+                width={32}
+                height={32}
+                borderRadius={16}
+                backgroundColor="$primarySoft"
+                alignItems="center"
+                justifyContent="center"
+              >
+                <Flame size={18} color="$primary" />
+              </Stack>
+              <YStack flex={1}>
+                <Text
+                  fontFamily="$heading"
+                  color="$color"
+                  fontSize={18}
+                  fontWeight="700"
+                >
+                  Keep the connection going
+                </Text>
+                <Text
+                  fontFamily="$body"
+                  color="$colorMuted"
+                  fontSize={13}
+                  lineHeight={18}
+                >
+                  {connectionStreakDays}-day streak of staying in touch. Do one
+                  tiny thing today.
+                </Text>
+              </YStack>
             </XStack>
 
-            {isLoading ? (
-              <YStack gap="$2">
-                {[1, 2, 3].map((i) => (
-                  <Stack
-                    key={i}
-                    backgroundColor="$background"
-                    borderRadius="$6"
-                    padding="$4"
-                    height={80}
-                  >
-                    <Spinner size="small" />
-                  </Stack>
-                ))}
-              </YStack>
-            ) : latestNotifications.length > 0 ? (
-              <YStack gap="$2">
-                {latestNotifications.map((notif) => (
-                  <Button
-                    key={notif.id}
-                    unstyled
-                    onPress={() => handleNotificationPress(notif)}
-                    pressStyle={{ opacity: 0.7 }}
-                  >
-                    <Stack
-                      backgroundColor="$background"
-                      borderRadius="$6"
-                      padding="$4"
-                      opacity={notif.read ? 0.6 : 1}
-                      borderLeftWidth={4}
-                      borderLeftColor={notif.read ? "$borderColor" : "$primary"}
-                    >
-                      <XStack gap="$3" alignItems="flex-start">
-                        <Text fontSize={24}>
-                          {notif.type === "todo_reminder"
-                            ? "⏰"
-                            : notif.type === "sticker_sent"
-                            ? "🎨"
-                            : notif.type === "favorite_added"
-                            ? "⭐"
-                            : "🔔"}
-                        </Text>
-                        <YStack flex={1} gap="$1">
-                          <Text color="$color" fontSize={15} fontWeight="700">
-                            {notif.title}
-                          </Text>
-                          <Text color="$muted" fontSize={13} numberOfLines={2}>
-                            {notif.body}
-                          </Text>
-                          <Text color="$muted" fontSize={11}>
-                            {new Date(notif.createdAt).toLocaleString()}
-                          </Text>
-                        </YStack>
-                      </XStack>
-                    </Stack>
-                  </Button>
-                ))}
-                <Button
-                  backgroundColor="transparent"
-                  borderColor="$borderColor"
-                  borderWidth={1}
-                  borderRadius="$6"
-                  height={44}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push("/(tabs)/notification");
-                  }}
-                  pressStyle={{ opacity: 0.7 }}
+            <Button
+              marginTop="$2"
+              borderRadius="$7"
+              backgroundColor="$primary"
+              height={48}
+              onPress={() => {
+                triggerSelectionHaptic();
+                router.push("/(tabs)/todos");
+              }}
+              pressStyle={{ opacity: 0.9, scale: 0.98 }}
+            >
+              <XStack alignItems="center" justifyContent="center" gap="$2">
+                <CheckSquare size={18} color="#ffffff" />
+                <Text
+                  fontFamily="$body"
+                  color="white"
+                  fontSize={15}
+                  fontWeight="700"
                 >
-                  <Text color="$color" fontSize={14} fontWeight="600">
-                    View All Notifications
-                  </Text>
-                </Button>
-              </YStack>
-            ) : (
-              <Stack
-                backgroundColor="$background"
-                borderRadius="$6"
-                padding="$6"
-                alignItems="center"
-                gap="$3"
-              >
-                <Text fontSize={48}>🔔</Text>
-                <YStack gap="$1" alignItems="center">
-                  <Text color="$color" fontSize={16} fontWeight="700">
-                    No notifications yet
-                  </Text>
-                  <Text color="$muted" fontSize={14} textAlign="center">
-                    You'll see updates from your partner here
-                  </Text>
-                </YStack>
-              </Stack>
-            )}
-          </YStack>
+                  Do something nice now
+                </Text>
+              </XStack>
+            </Button>
 
-          {/* Quick Actions */}
-          <YStack gap="$3">
-            <Text color="$color" fontSize={20} fontWeight="700">
-              Quick Actions
-            </Text>
-            <XStack gap="$2">
-              <Button
-                flex={1}
-                backgroundColor="$background"
-                borderRadius="$6"
-                height={100}
+            <XStack marginTop="$1" gap="$6" alignSelf="center">
+              <XStack
+                alignItems="center"
+                gap="$1"
                 onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push("/(tabs)/todos");
-                }}
-                pressStyle={{ opacity: 0.8 }}
-              >
-                <YStack alignItems="center" gap="$2">
-                  <Text fontSize={32}>✅</Text>
-                  <Text color="$color" fontSize={14} fontWeight="600">
-                    Todos
-                  </Text>
-                </YStack>
-              </Button>
-              <Button
-                flex={1}
-                backgroundColor="$background"
-                borderRadius="$6"
-                height={100}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push("/(tabs)/favorites");
-                }}
-                pressStyle={{ opacity: 0.8 }}
-              >
-                <YStack alignItems="center" gap="$2">
-                  <Text fontSize={32}>⭐</Text>
-                  <Text color="$color" fontSize={14} fontWeight="600">
-                    Favorites
-                  </Text>
-                </YStack>
-              </Button>
-              <Button
-                flex={1}
-                backgroundColor="$background"
-                borderRadius="$6"
-                height={100}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  triggerSelectionHaptic();
                   router.push("/(tabs)/stickers");
                 }}
-                pressStyle={{ opacity: 0.8 }}
               >
-                <YStack alignItems="center" gap="$2">
-                  <Text fontSize={32}>🎨</Text>
-                  <Text color="$color" fontSize={14} fontWeight="600">
-                    Stickers
-                  </Text>
-                </YStack>
-              </Button>
+                <Smile size={16} color="$primary" />
+                <Text fontFamily="$body" color="$primary" fontSize={13}>
+                  Send a sticker
+                </Text>
+              </XStack>
+
+              <XStack
+                alignItems="center"
+                gap="$1"
+                onPress={() => {
+                  triggerSelectionHaptic();
+                  router.push("/(tabs)/favorites");
+                }}
+              >
+                <Star size={16} color="$primary" />
+                <Text fontFamily="$body" color="$primary" fontSize={13}>
+                  Save a favorite
+                </Text>
+              </XStack>
             </XStack>
-          </YStack>
+          </Stack>
         </YStack>
       </ScrollView>
     </ScreenContainer>
   );
 }
+
+type StatPillProps = {
+  label: string;
+  value: number;
+  tone: "primary" | "highlight" | "soft" | "neutral";
+  icon: React.ComponentType<{ size?: number; color?: string }>;
+};
+
+const StatPill = ({ label, value, tone, icon: Icon }: StatPillProps) => {
+  let bg: string = "$bgCard";
+  let color: string = "$color";
+
+  if (tone === "primary") {
+    bg = "$primarySoft";
+    color = "$primary";
+  } else if (tone === "highlight") {
+    bg = value > 0 ? "$primarySoft" : "$bgCard";
+    color = value > 0 ? "$primary" : "$colorMuted";
+  } else if (tone === "soft") {
+    bg = "$bgSoft";
+    color = "$colorMuted";
+  }
+
+  return (
+    <XStack
+      paddingHorizontal="$3"
+      paddingVertical="$2"
+      borderRadius="$6"
+      backgroundColor={bg}
+      alignItems="center"
+      gap="$2"
+    >
+      <Stack
+        width={22}
+        height={22}
+        borderRadius={11}
+        backgroundColor="$bg"
+        alignItems="center"
+        justifyContent="center"
+      >
+        <Icon size={14} color={color === "$primary" ? "$primary" : "#888888"} />
+      </Stack>
+      <Text fontFamily="$body" color={color} fontSize={15} fontWeight="700">
+        {value}
+      </Text>
+      <Text
+        fontFamily="$body"
+        color="$colorMuted"
+        fontSize={12}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </XStack>
+  );
+};

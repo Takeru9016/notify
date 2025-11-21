@@ -16,7 +16,7 @@ export const useThemeStore = create<ThemeState>()(
   persist(
     (set) => ({
       mode: "system",
-      colorScheme: "coral", // default
+      colorScheme: "plum", // default
 
       setMode: (mode: ThemeMode) => {
         console.log("🎨 [ThemeStore] Setting theme mode:", mode);

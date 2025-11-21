@@ -2,7 +2,7 @@ import { Modal } from "react-native";
 import { YStack, XStack, Text, Button, Stack } from "tamagui";
 
 import { ThemeMode, ColorScheme, useThemeStore } from "@/state/theme";
-import { haptics } from "@/state/haptics";
+import { triggerLightHaptic, triggerSelectionHaptic } from "@/state/haptics";
 
 type Props = {
   visible: boolean;
@@ -76,12 +76,12 @@ export function ThemeSelectorModal({ visible, onClose }: Props) {
   ];
 
   const handleModeSelect = (newMode: ThemeMode) => {
-    haptics.selection();
+    triggerSelectionHaptic();
     setMode(newMode);
   };
 
   const handleColorSelect = (newScheme: ColorScheme) => {
-    haptics.selection();
+    triggerSelectionHaptic();
     setColorScheme(newScheme);
   };
 
@@ -118,7 +118,7 @@ export function ThemeSelectorModal({ visible, onClose }: Props) {
               <Button
                 unstyled
                 onPress={() => {
-                  haptics.light();
+                  triggerLightHaptic();
                   onClose();
                 }}
               >
