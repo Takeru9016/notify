@@ -1,6 +1,6 @@
 import React, { forwardRef, useEffect, useMemo, useRef } from "react";
 import { TextInput } from "react-native";
-import { XStack, Stack, Text } from "tamagui";
+import { XStack, Stack, Text, useTheme } from "tamagui";
 
 type Props = {
   length?: number;
@@ -16,6 +16,7 @@ export const CodeInput = forwardRef<TextInput, Props>(function CodeInput(
   { length = 8, group = 4, value = "", onChange, autoFocus, disabled, error },
   _ref
 ) {
+  const theme = useTheme();
   const inputs = useRef<Array<TextInput | null>>([]);
 
   const blocks = useMemo(() => Array.from({ length }), [length]);
@@ -82,12 +83,12 @@ export const CodeInput = forwardRef<TextInput, Props>(function CodeInput(
         return (
           <React.Fragment key={i}>
             <Stack
-              width={46}
-              height={54}
+              width={48}
+              height={56}
               borderRadius="$4"
-              backgroundColor="white"
+              backgroundColor="$bgSoft"
               borderWidth={2}
-              borderColor={error ? "#ff7b7b" : "#e0e0e0"}
+              borderColor={error ? "$error" : "$borderColor"}
               alignItems="center"
               justifyContent="center"
             >
@@ -105,20 +106,21 @@ export const CodeInput = forwardRef<TextInput, Props>(function CodeInput(
                 editable={!disabled}
                 selectTextOnFocus
                 style={{
-                  fontSize: 22,
+                  fontSize: 24,
                   fontWeight: "900",
-                  color: "#2d2751",
+                  color: theme.color.val,
                   padding: 0,
                   margin: 0,
-                  width: 42,
+                  width: 44,
                   textAlign: "center",
                 }}
               />
             </Stack>
             {showHyphenAfter && i < length - 1 ? (
               <Text
-                color="$muted"
-                fontSize={20}
+                fontFamily="$body"
+                color="$colorMuted"
+                fontSize={22}
                 fontWeight="700"
                 marginHorizontal="$1"
               >

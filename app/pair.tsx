@@ -18,6 +18,7 @@ import { CodeInput, Countdown, ScreenContainer } from "@/components";
 import { usePairingStore } from "@/store/pairing";
 import { formatCode, unformatCode } from "@/utils/code-generator";
 import { subscribeToProfile } from "@/services/profile/profile.service";
+import { triggerSelectionHaptic } from "@/state/haptics";
 
 export default function PairScreen() {
   const {
@@ -85,11 +86,13 @@ export default function PairScreen() {
   };
 
   const handleGenerate = async () => {
+    triggerSelectionHaptic();
     await generateCode();
   };
 
   const handleCopy = async () => {
     if (myCode) {
+      triggerSelectionHaptic();
       await Clipboard.setStringAsync(unformatCode(myCode));
       Alert.alert("Copied!", "Code copied to clipboard");
     }
@@ -98,6 +101,7 @@ export default function PairScreen() {
   const handleShare = async () => {
     if (!myCode) return;
     try {
+      triggerSelectionHaptic();
       await Share.share({
         message: `Join me on Notify! Use this code to pair: ${myCode}`,
       });
@@ -128,6 +132,8 @@ export default function PairScreen() {
     const formattedCode = unformatCode(input);
     console.log("🚀 Redeeming code:", formattedCode);
 
+    triggerSelectionHaptic();
+
     // Redeem code
     await redeemCode(formattedCode);
   };
@@ -138,48 +144,51 @@ export default function PairScreen() {
   return (
     <ScreenContainer title="Pair with your partner">
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} backgroundColor="$bg">
-        <YStack flex={1} padding="$4" paddingTop="$6" gap="$3">
-
-          <Text color="$muted" fontSize={14} marginBottom="$2" lineHeight={20}>
+        <YStack flex={1} padding="$5" paddingTop="$6" gap="$4">
+          {/* Subtitle */}
+          <Text
+            fontFamily="$body"
+            color="$colorMuted"
+            fontSize={15}
+            lineHeight={22}
+            marginBottom="$2"
+          >
             Pair and start sending cute reminders, stickers, and notes.
           </Text>
 
           {/* Share Code Card */}
           <Stack
-            backgroundColor="#e9d7ff"
+            backgroundColor="$primarySoft"
             borderRadius="$7"
-            padding="$4"
-            gap="$3"
+            padding="$5"
+            gap="$4"
+            borderWidth={1}
+            borderColor="$borderColor"
           >
-            {/* Title + Badge */}
-            <XStack
-              alignItems="flex-start"
-              justifyContent="space-between"
-              gap="$2"
+            {/* Title */}
+            <Text
+              fontFamily="$heading"
+              color="$color"
+              fontSize={20}
+              fontWeight="700"
+              lineHeight={26}
             >
-              <Text
-                color="$color"
-                fontSize={18}
-                fontWeight="900"
-                flex={1}
-                lineHeight={22}
-              >
-                I want to invite my partner
-              </Text>
-            </XStack>
+              I want to invite my partner
+            </Text>
 
             {/* Code Display */}
             <XStack
               alignItems="center"
               justifyContent="center"
-              paddingVertical="$2"
+              paddingVertical="$3"
             >
               {isLoading && !myCode ? (
                 <Spinner size="large" color="$primary" />
               ) : (
                 <Text
+                  fontFamily="$body"
                   color="$color"
-                  fontSize={36}
+                  fontSize={38}
                   fontWeight="900"
                   letterSpacing={4}
                 >
@@ -194,15 +203,20 @@ export default function PairScreen() {
                 flex={1}
                 backgroundColor="$primary"
                 borderRadius="$6"
-                height={44}
+                height={48}
                 onPress={handleCopy}
                 disabled={isLoading || codeExpired || !myCode}
-                pressStyle={{ opacity: 0.8 }}
+                pressStyle={{ opacity: 0.8, scale: 0.98 }}
               >
                 {isLoading ? (
                   <Spinner color="white" />
                 ) : (
-                  <Text color="white" fontWeight="700" fontSize={15}>
+                  <Text
+                    fontFamily="$body"
+                    color="white"
+                    fontWeight="700"
+                    fontSize={16}
+                  >
                     Copy
                   </Text>
                 )}
@@ -213,12 +227,17 @@ export default function PairScreen() {
                 borderWidth={2}
                 borderColor="$primary"
                 borderRadius="$6"
-                height={44}
+                height={48}
                 onPress={handleShare}
                 disabled={isLoading || codeExpired || !myCode}
-                pressStyle={{ opacity: 0.7 }}
+                pressStyle={{ opacity: 0.7, scale: 0.98 }}
               >
-                <Text color="$primary" fontWeight="700" fontSize={15}>
+                <Text
+                  fontFamily="$body"
+                  color="$primary"
+                  fontWeight="700"
+                  fontSize={16}
+                >
                   Share
                 </Text>
               </Button>
@@ -226,19 +245,27 @@ export default function PairScreen() {
 
             {/* Secure Connection Row */}
             <XStack
-              backgroundColor="rgba(255,255,255,0.5)"
+              backgroundColor="$bgCard"
               borderRadius="$5"
               padding="$3"
               alignItems="center"
               justifyContent="space-between"
             >
-              <Text color="$color" fontSize={14} fontWeight="600">
+              <Text
+                fontFamily="$body"
+                color="$color"
+                fontSize={15}
+                fontWeight="600"
+              >
                 Secure Connection
               </Text>
               <Switch
                 size="$3"
                 checked={secure}
-                onCheckedChange={(v) => setSecure(!!v)}
+                onCheckedChange={(v) => {
+                  triggerSelectionHaptic();
+                  setSecure(!!v);
+                }}
                 backgroundColor={secure ? "$primary" : "$borderColor"}
               >
                 <Switch.Thumb backgroundColor="white" />
@@ -247,23 +274,37 @@ export default function PairScreen() {
 
             {/* Countdown Row */}
             <XStack
-              backgroundColor="rgba(255,255,255,0.3)"
+              backgroundColor="$bgSoft"
               borderRadius="$5"
-              padding="$3"
+              paddingHorizontal="$3"
+              paddingVertical="$2"
               alignItems="center"
               justifyContent="space-between"
+              gap="$3"
             >
               <Countdown expiresAt={expiresAt} />
+
               <Button
-                chromeless
+                size="$3"
+                borderRadius="$6"
+                backgroundColor="transparent"
+                borderWidth={1}
+                borderColor="$primary"
+                height={36}
+                paddingHorizontal="$3"
                 onPress={handleGenerate}
                 disabled={isLoading}
-                pressStyle={{ opacity: 0.6 }}
+                pressStyle={{ opacity: 0.7, scale: 0.97 }}
               >
                 {isLoading ? (
                   <Spinner size="small" color="$primary" />
                 ) : (
-                  <Text color="$primary" fontWeight="700" fontSize={14}>
+                  <Text
+                    fontFamily="$body"
+                    color="$primary"
+                    fontWeight="700"
+                    fontSize={14}
+                  >
                     Regenerate
                   </Text>
                 )}
@@ -275,21 +316,21 @@ export default function PairScreen() {
           <XStack
             alignItems="center"
             justifyContent="center"
-            marginVertical="$2"
+            marginVertical="$3"
           >
             <Separator flex={1} borderColor="$borderColor" />
             <Stack
-              width={36}
-              height={36}
-              borderRadius={18}
-              backgroundColor="$background"
+              width={40}
+              height={40}
+              borderRadius={20}
+              backgroundColor="$bg"
               borderWidth={1}
               borderColor="$borderColor"
               alignItems="center"
               justifyContent="center"
               marginHorizontal="$3"
             >
-              <Text color="$muted" fontSize={13}>
+              <Text fontFamily="$body" color="$colorMuted" fontSize={14}>
                 or
               </Text>
             </Stack>
@@ -298,16 +339,24 @@ export default function PairScreen() {
 
           {/* Enter Code Card */}
           <Stack
-            backgroundColor="#ffd0c8"
+            backgroundColor="$bgCard"
             borderRadius="$7"
-            padding="$4"
-            gap="$3"
+            padding="$5"
+            gap="$4"
             marginBottom="$4"
+            borderWidth={1}
+            borderColor="$borderColor"
           >
-            <Text color="$color" fontSize={18} fontWeight="900" lineHeight={22}>
+            <Text
+              fontFamily="$heading"
+              color="$color"
+              fontSize={20}
+              fontWeight="700"
+              lineHeight={26}
+            >
               I have a code
             </Text>
-            <Text color="$muted" fontSize={14}>
+            <Text fontFamily="$body" color="$colorMuted" fontSize={15}>
               Enter your partner's code
             </Text>
 
@@ -321,11 +370,18 @@ export default function PairScreen() {
 
             {error ? (
               <Stack
-                backgroundColor="rgba(255,255,255,0.7)"
+                backgroundColor="$bgSoft"
                 borderRadius="$4"
-                padding="$2"
+                padding="$3"
+                borderWidth={1}
+                borderColor="$error"
               >
-                <Text color="#d32f2f" fontSize={13} fontWeight="600">
+                <Text
+                  fontFamily="$body"
+                  color="$error"
+                  fontSize={14}
+                  fontWeight="600"
+                >
                   {error}
                 </Text>
               </Stack>
@@ -334,17 +390,22 @@ export default function PairScreen() {
             <Button
               backgroundColor="$primary"
               borderRadius="$6"
-              height={44}
+              height={48}
               onPress={handleRedeem}
               disabled={
                 isLoading || input.replace(/[^A-Z0-9]/gi, "").length < 8
               }
-              pressStyle={{ opacity: 0.8 }}
+              pressStyle={{ opacity: 0.8, scale: 0.98 }}
             >
               {isLoading ? (
                 <Spinner color="white" />
               ) : (
-                <Text color="white" fontWeight="700" fontSize={15}>
+                <Text
+                  fontFamily="$body"
+                  color="white"
+                  fontWeight="700"
+                  fontSize={16}
+                >
                   Pair now
                 </Text>
               )}
