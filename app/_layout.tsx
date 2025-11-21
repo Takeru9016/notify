@@ -3,6 +3,16 @@ import { StatusBar, useColorScheme } from "react-native";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { TamaguiProvider, Theme, YStack, Text } from "tamagui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import * as SplashScreen from "expo-splash-screen";
+import {
+  useFonts as usePlayfairFonts,
+  PlayfairDisplay_600SemiBold,
+  PlayfairDisplay_700Bold,
+  PlayfairDisplay_800ExtraBold,
+  PlayfairDisplay_900Black,
+} from "@expo-google-fonts/playfair-display";
+import { useFonts as useInterFonts } from "expo-font";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import config from "../tamagui.config";
 import { usePairingStore } from "@/store/pairing";
@@ -18,7 +28,9 @@ import { testFirebaseConnection } from "@/utils/test/testFirebase";
 import { NotificationService } from "@/services/notification/local-notification.service";
 import { registerDevicePushToken } from "@/services/notification/push.registry";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+
+// Keep splash visible while fonts load
+SplashScreen.preventAutoHideAsync();
 
 const qc = new QueryClient();
 
@@ -149,10 +161,34 @@ function Gate() {
 
 export default function RootLayout() {
   const systemScheme = useColorScheme();
-  const { mode } = useThemeStore();
+  const { mode, colorScheme } = useThemeStore();
 
-  const activeTheme =
+  // Load Playfair Display fonts
+  const [playfairLoaded] = usePlayfairFonts({
+    PlayfairDisplay_600SemiBold,
+    PlayfairDisplay_700Bold,
+    PlayfairDisplay_800ExtraBold,
+    PlayfairDisplay_900Black,
+  });
+
+  // Load Inter fonts
+  const [interLoaded] = useInterFonts({
+    Inter: require("@tamagui/font-inter/otf/Inter-Medium.otf"),
+    InterBold: require("@tamagui/font-inter/otf/Inter-Bold.otf"),
+  });
+
+  const fontsLoaded = playfairLoaded && interLoaded;
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  // Determine active theme name (properly typed)
+  const effectiveMode =
     mode === "system" ? (systemScheme === "dark" ? "dark" : "light") : mode;
+  const activeTheme = `${colorScheme}_${effectiveMode}` as const;
 
   useEffect(() => {
     // Test Firebase connection (only in dev)
@@ -188,6 +224,10 @@ export default function RootLayout() {
     };
   }, []);
 
+  if (!fontsLoaded) {
+    return null; // Splash screen is still visible
+  }
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={qc}>
@@ -195,7 +235,7 @@ export default function RootLayout() {
           <Theme name={activeTheme}>
             <StatusBar
               barStyle={
-                activeTheme === "dark" ? "light-content" : "dark-content"
+                effectiveMode === "dark" ? "light-content" : "dark-content"
               }
             />
             <ErrorBoundary>

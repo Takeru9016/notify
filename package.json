@@ -15,6 +15,7 @@
     "update": "eas update --branch production --message \"OTA update\""
   },
   "dependencies": {
+    "@expo-google-fonts/playfair-display": "^0.4.2",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "^8.5.0",
