@@ -29,7 +29,9 @@ import {
   HeartHandshake,
   Sticker,
   Heart,
+  ExternalLink,
 } from "@tamagui/lucide-icons";
+import * as Linking from "expo-linking";
 
 import { useProfileStore } from "@/store/profile";
 import { usePairingStore } from "@/store/pairing";
@@ -88,10 +90,14 @@ function AccentChip({ label, value }: AccentChipProps) {
 
   // Map each scheme to a tiny preview color (tune these to your tokens if needed)
   const previewColorMap: Record<ColorScheme, string> = {
-    coral: "#ff8a80",
-    rose: "#f6a5c0",
-    plum: "#b39ddb",
-    lavender: "#ce93d8",
+    coral: "#FF7A7A",
+    rose: "#E86A82",
+    plum: "#9A5FB5",
+    lavender: "#9C86E0",
+    mocha: "#C87A4A",
+    ocean: "#1F9A88",
+    sunset: "#FF8A5C",
+    sky: "#3B82F6"
   };
   const dotColor = previewColorMap[value];
 
@@ -184,15 +190,23 @@ export default function SettingsScreen() {
       Alert.alert("Invalid Name", "Name cannot be empty");
       return;
     }
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await updateProfile({ displayName: tempName.trim() });
-    setEditingName(false);
+    try {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await updateProfile({ displayName: tempName.trim() });
+      setEditingName(false);
+    } catch (error) {
+      Alert.alert("Error", "Failed to update name");
+    }
   };
 
   const handleSaveBio = async () => {
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await updateProfile({ bio: tempBio.trim() });
-    setEditingBio(false);
+    try {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await updateProfile({ bio: tempBio.trim() });
+      setEditingBio(false);
+    } catch (error) {
+      Alert.alert("Error", "Failed to update bio");
+    }
   };
 
   const handleUnpair = () => {
@@ -339,7 +353,7 @@ export default function SettingsScreen() {
                       source={{ uri: profile.avatarUrl }}
                       width="100%"
                       height="100%"
-                      resizeMode="cover"
+                      objectFit="cover"
                     />
                   ) : (
                     <Stack
@@ -407,8 +421,9 @@ export default function SettingsScreen() {
                 marginBottom="$2"
                 textTransform="uppercase"
               >
-                Display name
+                Display Name
               </Text>
+
               {editingName ? (
                 <YStack gap="$2">
                   <TextInput
@@ -417,7 +432,11 @@ export default function SettingsScreen() {
                     style={inputStyles.input}
                     placeholder="Enter your name"
                     placeholderTextColor={theme.muted?.val || "#999"}
+                    autoFocus
+                    returnKeyType="done"
+                    onSubmitEditing={handleSaveName}
                   />
+
                   <XStack gap="$2">
                     <Button
                       flex={1}
@@ -431,6 +450,7 @@ export default function SettingsScreen() {
                         Save
                       </Text>
                     </Button>
+
                     <Button
                       flex={1}
                       backgroundColor="$bg"
@@ -455,11 +475,14 @@ export default function SettingsScreen() {
                   <Text color="$color" fontSize={15} fontWeight="600">
                     {profile?.displayName || "Not set"}
                   </Text>
+
                   <Button
                     backgroundColor="transparent"
-                    padding={0}
+                    paddingHorizontal="$2"
+                    height={32}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setTempName(profile?.displayName || "");
                       setEditingName(true);
                     }}
                     pressStyle={{ opacity: 0.7 }}
@@ -483,6 +506,7 @@ export default function SettingsScreen() {
               >
                 Bio
               </Text>
+
               {editingBio ? (
                 <YStack gap="$2">
                   <TextInput
@@ -494,6 +518,7 @@ export default function SettingsScreen() {
                     multiline
                     numberOfLines={3}
                   />
+
                   <XStack gap="$2">
                     <Button
                       flex={1}
@@ -507,6 +532,7 @@ export default function SettingsScreen() {
                         Save
                       </Text>
                     </Button>
+
                     <Button
                       flex={1}
                       backgroundColor="$bg"
@@ -527,15 +553,22 @@ export default function SettingsScreen() {
                   </XStack>
                 </YStack>
               ) : (
-                <XStack alignItems="flex-start" justifyContent="space-between">
+                <XStack
+                  alignItems="flex-start"
+                  justifyContent="space-between"
+                  gap="$2"
+                >
                   <Text color="$color" fontSize={14} flex={1}>
                     {profile?.bio || "No bio yet"}
                   </Text>
+
                   <Button
                     backgroundColor="transparent"
-                    padding={0}
+                    paddingHorizontal="$2"
+                    height={32}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setTempBio(profile?.bio || "");
                       setEditingBio(true);
                     }}
                     pressStyle={{ opacity: 0.7 }}
@@ -594,10 +627,14 @@ export default function SettingsScreen() {
                 Accent theme
               </Text>
               <XStack gap="$2" flexWrap="wrap">
-                <AccentChip label="Coral & Sand" value="coral" />
+                <AccentChip label="Coral Sand" value="coral" />
                 <AccentChip label="Rose Latte" value="rose" />
-                <AccentChip label="Plum & Mist" value="plum" />
+                <AccentChip label="Plum Mist" value="plum" />
                 <AccentChip label="Lavender Dreams" value="lavender" />
+                <AccentChip label="Mocha Haze" value="mocha" />
+                <AccentChip label="Ocean Mist" value="ocean" />
+                <AccentChip label="Sunset Glow" value="sunset" />
+                <AccentChip label="Sky Breeze" value="sky" />
               </XStack>
             </Stack>
           </YStack>
@@ -766,6 +803,133 @@ export default function SettingsScreen() {
               </Button>
             </YStack>
           )}
+
+          {/* Account Actions */}
+          <YStack gap="$3" paddingBottom="$4">
+            <XStack alignItems="center" gap="$2">
+              <Text
+                color="$color"
+                fontSize={15}
+                fontFamily="$heading"
+                fontWeight="800"
+                letterSpacing={0.4}
+              >
+                Account
+              </Text>
+            </XStack>
+
+            <Button
+              backgroundColor="$bgSoft"
+              borderColor="$borderColor"
+              borderWidth={1}
+              borderRadius="$6"
+              height={48}
+              onPress={() => {
+                Alert.alert(
+                  "Delete Account",
+                  "Are you sure? This will permanently delete your profile, avatar, and data. This action cannot be undone.",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Delete",
+                      style: "destructive",
+                      onPress: async () => {
+                        try {
+                          await Haptics.notificationAsync(
+                            Haptics.NotificationFeedbackType.Warning
+                          );
+                          // Import dynamically to avoid circular deps if any, or just use direct import
+                          const {
+                            deleteAccount,
+                          } = require("@/services/profile/profile.service");
+                          await deleteAccount();
+                          // Auth listener in _layout will handle redirect to onboarding/login
+                        } catch (error: any) {
+                          Alert.alert("Error", error.message);
+                        }
+                      },
+                    },
+                  ]
+                );
+              }}
+              pressStyle={{ opacity: 0.8 }}
+            >
+              <Text color="$red10" fontWeight="700" fontSize={15}>
+                Delete account
+              </Text>
+            </Button>
+          </YStack>
+
+          {/* About Section */}
+          <YStack gap="$3" paddingBottom="$8">
+            <XStack alignItems="center" gap="$2">
+              <Text
+                color="$color"
+                fontSize={15}
+                fontFamily="$heading"
+                fontWeight="800"
+                letterSpacing={0.4}
+              >
+                About
+              </Text>
+            </XStack>
+
+            <YStack
+              backgroundColor="$bgSoft"
+              borderRadius="$7"
+              overflow="hidden"
+            >
+              <Button
+                backgroundColor="transparent"
+                height={48}
+                justifyContent="flex-start"
+                paddingHorizontal="$4"
+                onPress={() => {
+                  Linking.openURL(
+                    "https://notify-landing-page.vercel.app/privacy"
+                  );
+                }}
+                pressStyle={{ opacity: 0.7, backgroundColor: "$bg" }}
+              >
+                <XStack justifyContent="space-between" width="100%">
+                  <Text color="$color" fontSize={15} fontWeight="600">
+                    Privacy Policy
+                  </Text>
+                  <ExternalLink size={16} color="$muted" />
+                </XStack>
+              </Button>
+              <Stack height={1} backgroundColor="$borderColor" opacity={0.5} />
+              <Button
+                backgroundColor="transparent"
+                height={48}
+                justifyContent="flex-start"
+                paddingHorizontal="$4"
+                onPress={() => {
+                  // TODO: Replace with actual URL when hosted
+                  Linking.openURL(
+                    "https://notify-landing-page.vercel.app/terms"
+                  );
+                }}
+                pressStyle={{ opacity: 0.7, backgroundColor: "$bg" }}
+              >
+                <XStack justifyContent="space-between" width="100%">
+                  <Text color="$color" fontSize={15} fontWeight="600">
+                    Terms of Service (EULA)
+                  </Text>
+                  <ExternalLink size={16} color="$muted" />
+                </XStack>
+              </Button>
+            </YStack>
+
+            <Text
+              textAlign="center"
+              color="$muted"
+              fontSize={12}
+              marginTop="$2"
+            >
+              Version 1.0.0 (1)
+            </Text>
+          </YStack>
         </YStack>
       </ScrollView>
     </ScreenContainer>

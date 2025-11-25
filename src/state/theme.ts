@@ -3,7 +3,15 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export type ThemeMode = "light" | "dark" | "system";
-export type ColorScheme = "coral" | "rose" | "plum" | "lavender";
+export type ColorScheme =
+  | "coral"
+  | "rose"
+  | "plum"
+  | "lavender"
+  | "mocha"
+  | "ocean"
+  | "sunset"
+  | "sky";
 
 interface ThemeState {
   mode: ThemeMode;
@@ -16,7 +24,7 @@ export const useThemeStore = create<ThemeState>()(
   persist(
     (set) => ({
       mode: "system",
-      colorScheme: "plum", // default
+      colorScheme: "coral", // default
 
       setMode: (mode: ThemeMode) => {
         console.log("🎨 [ThemeStore] Setting theme mode:", mode);

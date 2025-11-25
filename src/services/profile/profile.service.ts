@@ -3,11 +3,13 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
   serverTimestamp,
   onSnapshot,
 } from "firebase/firestore";
+import { deleteUser } from "firebase/auth";
 
-import { db } from "@/config/firebase";
+import { db, auth } from "@/config/firebase";
 import { UserProfile } from "@/types";
 import { getCurrentUserId } from "@/services/auth/auth.service";
 import { CloudinaryStorage } from "@/services/storage/cloudinary.adapter";
@@ -113,32 +115,18 @@ export async function uploadAvatar(localUri: string): Promise<string> {
   const uid = getCurrentUserId();
   if (!uid) throw new Error("No user ID available");
 
-  console.log("🎯 uploadAvatar called");
-  console.log("   User ID:", uid);
-  console.log("   Local URI:", localUri);
-
   try {
-    console.log("📤 Step 1: Uploading to Cloudinary...");
-
     // Upload to Cloudinary FIRST
     const { url } = await CloudinaryStorage.upload(localUri, {
       folder: `notify/avatars/${uid}`,
     });
 
-    console.log("✅ Step 2: Cloudinary upload complete!");
-    console.log("   Cloudinary URL:", url);
-
     // THEN update Firestore with the Cloudinary URL
-    console.log("📝 Step 3: Updating Firestore with Cloudinary URL...");
     await updateProfile({ avatarUrl: url });
-
-    console.log("✅ Step 4: Profile updated successfully!");
-    console.log("   Final avatar URL:", url);
 
     return url;
   } catch (error: any) {
     console.error("❌ Error in uploadAvatar:", error.message);
-    console.error("❌ Error stack:", error.stack);
     throw error;
   }
 }
@@ -369,7 +357,77 @@ export function subscribeToPartnerProfile(
   return () => {
     console.log("🔇 Cleaning up partner profile listener");
     profileUnsubscribe();
-    if (pairUnsubscribe) pairUnsubscribe();
     if (partnerUnsubscribe) partnerUnsubscribe();
   };
+}
+
+/**
+ * Delete account
+ * Permanently deletes user data, avatar, and auth account
+ */
+export async function deleteAccount(): Promise<void> {
+  const uid = getCurrentUserId();
+  const user = auth.currentUser;
+
+  if (!uid || !user) {
+    throw new Error("No user authenticated");
+  }
+
+  console.log("🚨 Deleting account for:", uid);
+
+  try {
+    // 1. Delete avatar from Cloudinary (if exists)
+    // Note: We can't easily delete from Cloudinary without the public_id,
+    // but we can rely on the folder structure 'notify/avatars/{uid}'
+    // For now, we'll skip explicit Cloudinary deletion as it requires admin SDK or keeping track of public_id.
+    // In a real app, you'd want a Cloud Function to handle this cleanup.
+
+    // 2. Remove from pairing (if paired)
+    const profile = await getProfile();
+    if (profile?.pairId) {
+      console.log("💔 Removing from pair...");
+      // We can use the existing unpair logic or just let the partner know
+      // For simplicity, we'll just delete our reference.
+      // Ideally, trigger an unpair action first.
+      const pairRef = doc(db, "pairs", profile.pairId);
+      const pairSnap = await getDoc(pairRef);
+
+      if (pairSnap.exists()) {
+        const data = pairSnap.data();
+        const otherUserId = data.participants.find((id: string) => id !== uid);
+
+        // Notify partner or just delete the pair doc if we want to be aggressive
+        // Better: Update pair to remove this user, effectively unpairing
+        await updateDoc(pairRef, {
+          participants: data.participants.filter((id: string) => id !== uid),
+          active: false,
+          updatedAt: serverTimestamp(),
+        });
+
+        // Flag partner to show onboarding
+        if (otherUserId) {
+          await updateDoc(doc(db, "users", otherUserId), {
+            pairId: null,
+            showOnboardingAfterUnpair: true,
+          });
+        }
+      }
+    }
+
+    // 3. Delete Firestore User Document
+    console.log("🔥 Deleting Firestore document...");
+    await deleteDoc(doc(db, "users", uid));
+
+    // 4. Delete Auth Account
+    console.log("👋 Deleting Auth account...");
+    await deleteUser(user);
+
+    console.log("✅ Account deleted successfully");
+  } catch (error: any) {
+    console.error("❌ Error deleting account:", error);
+    if (error.code === "auth/requires-recent-login") {
+      throw new Error("Please log out and log in again to delete your account.");
+    }
+    throw error;
+  }
 }

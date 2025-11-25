@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font"; // ← Single import
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import * as Sentry from "@sentry/react-native";
 
 import config from "../tamagui.config";
 import { usePairingStore } from "@/store/pairing";
@@ -22,6 +23,25 @@ import { testFirebaseConnection } from "@/utils/test/testFirebase";
 import { NotificationService } from "@/services/notification/local-notification.service";
 import { registerDevicePushToken } from "@/services/notification/push.registry";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
+
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+
+  // Adds more context data to events (IP address, cookies, user, etc.)
+  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
+  sendDefaultPii: true,
+
+  // Enable Logs
+  enableLogs: true,
+
+  // Configure Session Replay
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1,
+  integrations: [Sentry.mobileReplayIntegration()],
+
+  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+  // spotlight: __DEV__,
+});
 
 // Keep splash visible while fonts load
 SplashScreen.preventAutoHideAsync();
@@ -63,8 +83,6 @@ function Gate() {
   useEffect(() => {
     if (!initialized || !user) return;
 
-    console.log("👂 Setting up profile listener");
-
     const unsubscribe = subscribeToProfile((profile) => {
       setProfile(profile);
 
@@ -87,7 +105,6 @@ function Gate() {
     });
 
     return () => {
-      console.log("🔇 Cleaning up profile listener");
       unsubscribe();
     };
   }, [initialized, user]);
@@ -96,14 +113,11 @@ function Gate() {
   useEffect(() => {
     if (!initialized || !user || !isPaired) return;
 
-    console.log("👂 Setting up partner profile listener");
-
     const unsubscribe = subscribeToPartnerProfile((partnerProfile) => {
       setPartnerProfile(partnerProfile);
     });
 
     return () => {
-      console.log("🔇 Cleaning up partner profile listener");
       unsubscribe();
     };
   }, [initialized, user, isPaired]);
@@ -128,21 +142,16 @@ function Gate() {
 
       // Initial navigation
       if (user && isPaired && !inTabs) {
-        console.log("🔀 Redirecting to tabs (paired)");
         router.replace("/(tabs)");
         return;
       }
 
       if (shouldShowOnboarding && !inOnboarding) {
-        console.log("🔀 Redirecting to onboarding (unpaired, flag true)");
         router.replace("/onboarding");
         return;
       }
 
       if (isUnpaired && !shouldShowOnboarding && !inPair) {
-        console.log(
-          "🔀 Redirecting to pair screen (unpaired, skip onboarding)"
-        );
         router.replace("/pair");
         return;
       }
@@ -152,13 +161,10 @@ function Gate() {
 
     // Subsequent navigation
     if (user && isPaired && (inPair || inOnboarding)) {
-      console.log("🔀 Redirecting to tabs (paired, not in tabs)");
       router.replace("/(tabs)");
     } else if (shouldShowOnboarding && !inOnboarding) {
-      console.log("🔀 Redirecting to onboarding (unpaired, flag true)");
       router.replace("/onboarding");
     } else if (isUnpaired && !shouldShowOnboarding && inTabs) {
-      console.log("🔀 Redirecting to pair screen (unpaired, in tabs)");
       router.replace("/pair");
     }
   }, [
@@ -179,7 +185,7 @@ function Gate() {
   return <Slot />;
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const systemScheme = useColorScheme();
   const { mode, colorScheme } = useThemeStore();
 
@@ -265,3 +271,5 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+export default Sentry.wrap(RootLayout);

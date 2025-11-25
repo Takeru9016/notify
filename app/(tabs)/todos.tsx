@@ -27,7 +27,7 @@ import {
 } from "@/state/haptics";
 
 type ViewMode = "today" | "upcoming" | "someday";
-type StatusFilter = "active" | "all" | "completed";
+type StatusFilter = "all" | "active" | "completed";
 
 const isToday = (ts: number) => {
   const d = new Date(ts);
@@ -122,7 +122,7 @@ export default function TodosScreen() {
     }
 
     // Status filter
-    if (statusFilter === "active") {
+    if (statusFilter === "all") {
       base = base.filter((t) => !t.isCompleted);
     } else if (statusFilter === "completed") {
       base = base.filter((t) => t.isCompleted);
@@ -264,6 +264,7 @@ export default function TodosScreen() {
               borderRadius="$8"
               padding="$1"
               gap="$1"
+              width={260}
             >
               <SegmentChip
                 label="Today"
@@ -284,9 +285,6 @@ export default function TodosScreen() {
 
             {/* Status filter: Active / All / Completed */}
             <XStack gap="$2" alignItems="center">
-              <Text fontFamily="$body" color="$colorMuted" fontSize={13}>
-                Show
-              </Text>
               <XStack
                 backgroundColor="$bgCard"
                 borderRadius="$6"
@@ -294,16 +292,16 @@ export default function TodosScreen() {
                 gap="$1"
               >
                 <SegmentChip
-                  label="Active"
-                  small
-                  isActive={statusFilter === "active"}
-                  onPress={() => setStatusFilter("active")}
-                />
-                <SegmentChip
                   label="All"
                   small
                   isActive={statusFilter === "all"}
                   onPress={() => setStatusFilter("all")}
+                />
+                <SegmentChip
+                  label="Active"
+                  small
+                  isActive={statusFilter === "active"}
+                  onPress={() => setStatusFilter("active")}
                 />
                 <SegmentChip
                   label="Completed"

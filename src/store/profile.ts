@@ -89,6 +89,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
         error: "Failed to update profile",
         isLoading: false,
       });
+      throw error;
     }
   },
 

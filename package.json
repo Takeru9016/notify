@@ -9,9 +9,13 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "build:dev": "eas build --profile dev --platform all",
+    "build:dev": "eas build --profile development --platform all",
     "build:preview": "eas build --profile preview --platform all",
     "build:prod": "eas build --profile production --platform all",
+    "build:prod:ios": "eas build --profile production --platform ios",
+    "build:prod:android": "eas build --profile production --platform android",
+    "submit:ios": "eas submit --profile production --platform ios",
+    "submit:android": "eas submit --profile production --platform android",
     "update": "eas update --branch production --message \"OTA update\""
   },
   "dependencies": {
@@ -21,6 +25,7 @@
     "@react-navigation/bottom-tabs": "^7.8.4",
     "@react-navigation/elements": "^2.8.1",
     "@react-navigation/native": "^7.1.19",
+    "@sentry/react-native": "~7.2.0",
     "@tamagui/lucide-icons": "^1.137.3",
     "@tanstack/react-query": "^5.90.9",
     "date-fns": "^4.1.0",

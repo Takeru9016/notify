@@ -1,5 +1,6 @@
 import React, { Component, ReactNode } from "react";
 import { YStack, Text, Button } from "tamagui";
+import * as Sentry from "@sentry/react-native";
 
 interface Props {
   children: ReactNode;
@@ -23,6 +24,9 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("❌ [ErrorBoundary] Caught error:", error, errorInfo);
+    Sentry.captureException(error, {
+      extra: errorInfo as any,
+    });
   }
 
   handleReset = () => {

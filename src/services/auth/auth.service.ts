@@ -60,18 +60,14 @@ export function isAuthenticated(): boolean {
  * This should be called once on app startup
  */
 export function initializeAuthListener(): () => void {
-  console.log('🔐 Initializing auth listener...');
-  
   const unsubscribe = onAuthStateChanged(
     auth,
     async (user) => {
       const { setUser, setInitialized, initialized } = useAuthStore.getState();
       
       if (user) {
-        console.log('✅ Auth state changed: User signed in:', user.uid);
         setUser(user);
       } else {
-        console.log('⚠️ Auth state changed: No user, signing in anonymously...');
         try {
           const newUser = await signInAnonymous();
           setUser(newUser);
