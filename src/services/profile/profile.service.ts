@@ -386,7 +386,7 @@ export async function deleteAccount(): Promise<void> {
   try {
     // 1. Delete avatar from Cloudinary (if exists)
     // Note: We can't easily delete from Cloudinary without the public_id,
-    // but we can rely on the folder structure 'notify/avatars/{uid}'
+    // but we can rely on the folder structure 'syngo/avatars/{uid}'
     // For now, we'll skip explicit Cloudinary deletion as it requires admin SDK or keeping track of public_id.
     // In a real app, you'd want a Cloud Function to handle this cleanup.
 
@@ -404,7 +404,7 @@ export async function deleteAccount(): Promise<void> {
         const data = pairSnap.data();
         const otherUserId = data.participants.find((id: string) => id !== uid);
 
-        // Notify partner or just delete the pair doc if we want to be aggressive
+        // Syngo partner or just delete the pair doc if we want to be aggressive
         // Better: Update pair to remove this user, effectively unpairing
         await updateDoc(pairRef, {
           participants: data.participants.filter((id: string) => id !== uid),

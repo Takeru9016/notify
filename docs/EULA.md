@@ -2,7 +2,7 @@
 
 _Last updated: November 20, 2025_
 
-This End User License Agreement ("Agreement") is a legal agreement between you ("User") and Notify ("Company", "we", "us") governing your use of the Notify mobile application (the "App").
+This End User License Agreement ("Agreement") is a legal agreement between you ("User") and Syngo ("Company", "we", "us") governing your use of the Syngo mobile application (the "App").
 
 By downloading, installing, or using the App, you agree to be bound by this Agreement.
 

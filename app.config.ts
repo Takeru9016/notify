@@ -4,11 +4,11 @@ import type { ExpoConfig } from "@expo/config";
 const EAS_PROJECT_ID = "0f6d9962-45d9-4648-bc14-54362c3f999e";
 
 const config: ExpoConfig = {
-  name: "Notify",
-  slug: "notify",
+  name: "Syngo",
+  slug: "syngo",
   version: "1.0.0",
   orientation: "portrait",
-  scheme: "notify",
+  scheme: "syngo",
   userInterfaceStyle: "automatic",
   newArchEnabled: true,
 
@@ -25,12 +25,12 @@ const config: ExpoConfig = {
   },
 
   ios: {
-    bundleIdentifier: "com.sahiljadhav.notify",
+    bundleIdentifier: "com.sahiljadhav.syngo",
     buildNumber: "1",
     supportsTablet: false, // Portrait-only app
 
     // App Store metadata
-    appStoreUrl: "https://apps.apple.com/app/notify/idXXXXXXXXXX", // Will be filled after app is live
+    appStoreUrl: "https://apps.apple.com/app/syngo/idXXXXXXXXXX", // Will be filled after app is live
 
     infoPlist: {
       // Background modes for notifications
@@ -39,13 +39,13 @@ const config: ExpoConfig = {
 
       // Privacy - Photo Library
       NSPhotoLibraryUsageDescription:
-        "Notify needs access to your photo library so you can upload stickers and images to share with your partner.",
+        "Syngo needs access to your photo library so you can upload stickers and images to share with your partner.",
       NSPhotoLibraryAddUsageDescription:
-        "Notify needs permission to save images to your photo library.",
+        "Syngo needs permission to save images to your photo library.",
 
       // Privacy - Camera
       NSCameraUsageDescription:
-        "Notify needs camera access so you can take photos for stickers and images to share with your partner.",
+        "Syngo needs camera access so you can take photos for stickers and images to share with your partner.",
 
       // Privacy - Notifications (iOS 10+)
       // This is implicit with expo-notifications, but good to document
@@ -69,16 +69,16 @@ const config: ExpoConfig = {
     },
 
     // Associated domains for universal links (if you add deep linking later)
-    // associatedDomains: ["applinks:notify.app"],
+    // associatedDomains: ["applinks:syngo.app"],
   },
 
   android: {
-    package: "com.sahiljadhav.notify",
+    package: "com.sahiljadhav.syngo",
     versionCode: 1,
 
     // Play Store metadata
     playStoreUrl:
-      "https://play.google.com/store/apps/details?id=com.sahiljadhav.notify", // Will be filled after app is live
+      "https://play.google.com/store/apps/details?id=com.sahiljadhav.syngo", // Will be filled after app is live
 
     adaptiveIcon: {
       backgroundColor: "#050816",
@@ -145,9 +145,9 @@ const config: ExpoConfig = {
       "expo-image-picker",
       {
         photosPermission:
-          "Notify needs access to your photo library so you can upload stickers and images to share with your partner.",
+          "Syngo needs access to your photo library so you can upload stickers and images to share with your partner.",
         cameraPermission:
-          "Notify needs camera access so you can take photos for stickers and images to share with your partner.",
+          "Syngo needs camera access so you can take photos for stickers and images to share with your partner.",
         microphonePermission: false,
       },
     ],
@@ -158,7 +158,7 @@ const config: ExpoConfig = {
         icon: "./assets/images/notification-icon.png", // 96×96 transparent PNG with white icon
         color: "#6366F1", // My primary indigo color
         mode: "production",
-        sounds: "./assets/sounds/notification.mp3", // Custom notification sound
+        sounds: ["./assets/sounds/notification.mp3"], // Custom notification sound
       },
     ],
 
@@ -201,9 +201,9 @@ const config: ExpoConfig = {
     appVersion: "1.0.0",
     appBuildNumber: "1",
     supportEmail: "timetocode22@gmail.com",
-    privacyPolicyUrl: "https://notify-landing-page.vercel.app/privacy",
-    termsOfServiceUrl: "https://notify-landing-page.vercel.app/eula",
-    websiteUrl: "https://notify-landing-page.vercel.app/",
+    privacyPolicyUrl: "https://syngo-landing-page.vercel.app/privacy",
+    termsOfServiceUrl: "https://syngo-landing-page.vercel.app/eula",
+    websiteUrl: "https://syngo-landing-page.vercel.app/",
   },
 
   // Update configuration (for OTA updates via EAS Update)

@@ -886,7 +886,7 @@ export default function SettingsScreen() {
                 paddingHorizontal="$4"
                 onPress={() => {
                   Linking.openURL(
-                    "https://notify-landing-page.vercel.app/privacy"
+                    "https://syngo-landing-page.vercel.app/privacy"
                   );
                 }}
                 pressStyle={{ opacity: 0.7, backgroundColor: "$bg" }}
@@ -907,7 +907,7 @@ export default function SettingsScreen() {
                 onPress={() => {
                   // TODO: Replace with actual URL when hosted
                   Linking.openURL(
-                    "https://notify-landing-page.vercel.app/terms"
+                    "https://syngo-landing-page.vercel.app/terms"
                   );
                 }}
                 pressStyle={{ opacity: 0.7, backgroundColor: "$bg" }}

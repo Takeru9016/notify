@@ -103,7 +103,7 @@ export default function PairScreen() {
     try {
       triggerSelectionHaptic();
       await Share.share({
-        message: `Join me on Notify! Use this code to pair: ${myCode}`,
+        message: `Join me on Syngo! Use this code to pair: ${myCode}`,
       });
     } catch (error) {
       console.error("Error sharing code:", error);
@@ -357,7 +357,7 @@ export default function PairScreen() {
               I have a code
             </Text>
             <Text fontFamily="$body" color="$colorMuted" fontSize={15}>
-              Enter your partner's code
+              Enter your partner&apos;s code
             </Text>
 
             <CodeInput

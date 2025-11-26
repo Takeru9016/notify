@@ -120,7 +120,7 @@ export default function HomeScreen() {
   const displayName = profile?.displayName || "you";
 
   // Fake “connection streak” for now – can be real later
-  const connectionStreakDays = Math.max(1, Math.min(7, unreadCount ? 2 : 3));
+  // const connectionStreakDays = Math.max(1, Math.min(7, unreadCount ? 2 : 3));
 
   return (
     <ScreenContainer title="Home">
@@ -473,7 +473,7 @@ export default function HomeScreen() {
                       fontSize={14}
                       textAlign="center"
                     >
-                      You'll see reminders, stickers, and favorites from your
+                      You&apos;ll see reminders, stickers, and favorites from your
                       partner here.
                     </Text>
                   </YStack>

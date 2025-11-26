@@ -1,16 +1,16 @@
-# Privacy Policy for Notify
+# Privacy Policy for Syngo
 
 _Last updated: November 20, 2025_
 
-Thank you for using **Notify** ("we", "us", or "our").  
-This Privacy Policy explains how we collect, use, and protect your information when you use the Notify mobile application (the "App").
+Thank you for using **Syngo** ("we", "us", or "our").  
+This Privacy Policy explains how we collect, use, and protect your information when you use the Syngo mobile application (the "App").
 
 By using the App, you agree to the collection and use of information in accordance with this policy.
 
 
 ## 1. Information We Collect
 
-We collect the minimum information needed to provide the core features of Notify.
+We collect the minimum information needed to provide the core features of Syngo.
 
 ### 1.1. Account and Device Information
 
@@ -104,7 +104,7 @@ If you uninstall the App without requesting deletion, your data may remain in ou
 
 ## 6. Children’s Privacy
 
-Notify is not directed to children under the age of 13, and we do not knowingly collect personal information from children under 13. If you are a parent or guardian and believe that your child has provided us with personal information, please contact us so we can take appropriate action.
+Syngo is not directed to children under the age of 13, and we do not knowingly collect personal information from children under 13. If you are a parent or guardian and believe that your child has provided us with personal information, please contact us so we can take appropriate action.
 
 ## 7. International Transfers
 

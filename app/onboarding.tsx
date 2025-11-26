@@ -53,7 +53,7 @@ export default function OnboardingScreen() {
             lineHeight={44}
             color="$color"
           >
-            Notify
+            Syngo
           </Text>
           <Paragraph fontFamily="$body" size="$3" color="$colorMuted">
             A cozy little space for just the two of you.
