@@ -201,9 +201,9 @@ const config: ExpoConfig = {
     appVersion: "1.0.0",
     appBuildNumber: "1",
     supportEmail: "timetocode22@gmail.com",
-    privacyPolicyUrl: "https://syngo-landing-page.vercel.app/privacy",
-    termsOfServiceUrl: "https://syngo-landing-page.vercel.app/eula",
-    websiteUrl: "https://syngo-landing-page.vercel.app/",
+    privacyPolicyUrl: "https://syngo.vercel.app/privacy",
+    termsOfServiceUrl: "https://syngo.vercel.app/eula",
+    websiteUrl: "https://syngo.vercel.app/",
   },
 
   // Update configuration (for OTA updates via EAS Update)
